@@ -43,6 +43,8 @@ async def get_free_busy(
         availability_view_interval: Size of each time slot in minutes
             (default: 30).
     """
+    if not emails:
+        return {"error": "At least one email address is required."}
     if err := validate_emails(emails):
         return {"error": err}
 
@@ -115,6 +117,8 @@ async def find_meeting_times(
         max_candidates: Maximum number of suggestions to return
             (default: 5).
     """
+    if not attendees:
+        return {"error": "At least one attendee is required."}
     if err := validate_emails(attendees):
         return {"error": err}
 
