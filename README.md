@@ -1,5 +1,7 @@
 # Office Assistant
 
+![Office Assistant Screenshot](screenshot.png)
+
 Manage Office 365 calendars through a chat interface powered by [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview).
 
 Type things like **"What's on my calendar today?"** or **"Schedule a meeting with Alice tomorrow at 2pm"** and the assistant handles the rest -- creating events, checking availability, finding times that work for everyone, and more.
