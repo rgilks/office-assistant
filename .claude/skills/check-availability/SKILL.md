@@ -1,0 +1,24 @@
+---
+name: check-availability
+description: >
+  Check free/busy status for one or more people. Use when the user asks if
+  someone is free, busy, available, or what their availability looks like.
+argument-hint: "[person emails] on [date/time range]"
+disable-model-invocation: true
+---
+
+Check people's availability using their Office 365 free/busy schedule.
+
+## Process
+
+1. Call `get_my_profile` to get the user's timezone.
+2. Parse the email addresses and time range from the request.
+3. If no time range is given, default to the current business day (9am-5pm)
+   in the user's timezone.
+4. Call `get_free_busy` with the parameters.
+5. Present results clearly for each person:
+   - Their scheduled items with times and status (free/busy/tentative/out of office)
+   - A plain-English summary: "Alice is free from 10-11am and 2-4pm.
+     Bob is in meetings until 3pm."
+6. If the user wants to book a slot based on the results, offer to create the
+   meeting using `create_event`.
