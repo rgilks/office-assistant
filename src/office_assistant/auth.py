@@ -46,7 +46,11 @@ def _build_cache() -> msal.SerializableTokenCache:
     """Load the persistent token cache from disk."""
     cache = msal.SerializableTokenCache()
     if CACHE_FILE.exists():
-        cache.deserialize(CACHE_FILE.read_text())
+        try:
+            cache.deserialize(CACHE_FILE.read_text())
+        except Exception:
+            # Treat unreadable/corrupt cache as empty so auth can recover.
+            return msal.SerializableTokenCache()
     return cache
 
 

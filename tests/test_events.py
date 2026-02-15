@@ -63,7 +63,20 @@ class TestListEvents:
         )
 
         call_args = mock_graph.get.call_args
-        assert "/users/bob@company.com/calendarview" in call_args[0][0]
+        assert "/users/bob%40company.com/calendarview" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_invalid_user_email_rejected(self, mock_ctx, mock_graph):
+        result = await list_events(
+            start_datetime="2026-02-16T00:00:00",
+            end_datetime="2026-02-16T23:59:59",
+            ctx=mock_ctx,
+            user_email="not-an-email",
+        )
+
+        assert "error" in result
+        assert "Invalid email" in result["error"]
+        mock_graph.get.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_access_denied(self, mock_ctx, mock_graph):
@@ -211,6 +224,20 @@ class TestUpdateEvent:
         body = mock_graph.patch.call_args[1]["json"]
         assert body["start"]["dateTime"] == "2026-02-16T11:00:00"
         assert body["start"]["timeZone"] == "Europe/London"
+
+    @pytest.mark.asyncio
+    async def test_update_enables_online_meeting_provider(self, mock_ctx, mock_graph):
+        mock_graph.patch.return_value = SAMPLE_EVENT
+
+        await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            is_online_meeting=True,
+        )
+
+        body = mock_graph.patch.call_args[1]["json"]
+        assert body["isOnlineMeeting"] is True
+        assert body["onlineMeetingProvider"] == "teamsForBusiness"
 
 
 class TestCancelEvent:

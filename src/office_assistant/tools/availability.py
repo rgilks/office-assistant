@@ -47,6 +47,13 @@ async def get_free_busy(
         return {"error": "At least one email address is required."}
     if err := validate_emails(emails):
         return {"error": err}
+    if not 5 <= availability_view_interval <= 1440 or availability_view_interval % 5 != 0:
+        return {
+            "error": (
+                "availability_view_interval must be between 5 and 1440 minutes "
+                "in 5-minute increments."
+            )
+        }
 
     graph = get_graph(ctx)
 
@@ -121,6 +128,10 @@ async def find_meeting_times(
         return {"error": "At least one attendee is required."}
     if err := validate_emails(attendees):
         return {"error": err}
+    if duration_minutes <= 0:
+        return {"error": "duration_minutes must be greater than 0."}
+    if not 1 <= max_candidates <= 20:
+        return {"error": "max_candidates must be between 1 and 20."}
 
     graph = get_graph(ctx)
 

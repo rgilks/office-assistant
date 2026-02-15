@@ -51,6 +51,8 @@ class GraphClient:
     async def patch(self, path: str, json: dict[str, Any]) -> dict[str, Any]:
         resp = await self._http.patch(path, headers=await self._auth_headers(), json=json)
         resp.raise_for_status()
+        if not resp.content:
+            return {}
         return resp.json()
 
     async def delete(self, path: str) -> None:
