@@ -86,8 +86,7 @@ def validate_datetime_order(
 
     if (start.tzinfo is None) != (end.tzinfo is None):
         return (
-            f"{start_field} and {end_field} must both include timezone offsets "
-            "or both omit them."
+            f"{start_field} and {end_field} must both include timezone offsets or both omit them."
         )
 
     if start >= end:
@@ -105,8 +104,7 @@ def graph_error_response(
     if exc.status_code == 401 or code in {"invalidauthenticationtoken", "unauthorized"}:
         error_type = "auth_error"
         message = (
-            fallback_message
-            or "Authentication failed. Run /calendar-setup to sign in again."
+            fallback_message or "Authentication failed. Run /calendar-setup to sign in again."
         )
     elif exc.status_code == 403 or code in {"erroraccessdenied", "accessdenied"}:
         error_type = "permission_denied"

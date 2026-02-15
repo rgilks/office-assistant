@@ -172,9 +172,7 @@ async def test_availability_and_meeting_suggestions_flow(integration_ctx):
                             "confidence": 95.0,
                             "attendeeAvailability": [
                                 {
-                                    "attendee": {
-                                        "emailAddress": {"address": "alice@company.com"}
-                                    },
+                                    "attendee": {"emailAddress": {"address": "alice@company.com"}},
                                     "availability": "free",
                                 }
                             ],
