@@ -95,6 +95,21 @@ class TestGetFreeBusy:
 
         assert result["count"] == 2
 
+    @pytest.mark.asyncio
+    async def test_invalid_interval_rejected(self, mock_ctx, mock_graph):
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            availability_view_interval=4,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "availability_view_interval" in result["error"]
+        mock_graph.post.assert_not_called()
+
 
 class TestFindMeetingTimes:
     @pytest.mark.asyncio
@@ -106,6 +121,31 @@ class TestFindMeetingTimes:
         )
 
         assert "error" in result
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_duration_rejected(self, mock_ctx, mock_graph):
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=0,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "duration_minutes" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_max_candidates_rejected(self, mock_ctx, mock_graph):
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            max_candidates=25,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "max_candidates" in result["error"]
         mock_graph.post.assert_not_called()
 
     @pytest.mark.asyncio

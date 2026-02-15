@@ -30,6 +30,13 @@ class TestTokenCache:
             cache = _build_cache()
             assert cache is not None
 
+    def test_build_cache_corrupt_file(self, tmp_path):
+        cache_file = tmp_path / "token_cache.json"
+        cache_file.write_text("not-json")
+        with patch("office_assistant.auth.CACHE_FILE", cache_file):
+            cache = _build_cache()
+            assert cache.serialize() == "{}"
+
     def test_save_cache_creates_dir(self, tmp_path):
         cache_dir = tmp_path / "new_dir"
         cache_file = cache_dir / "token_cache.json"

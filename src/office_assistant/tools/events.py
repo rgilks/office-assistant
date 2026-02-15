@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 from mcp.server.fastmcp import Context
 
@@ -65,8 +66,11 @@ async def list_events(
             Omit to view the authenticated user's calendar.
             Requires that the user has shared their calendar with you.
     """
+    if user_email and (err := validate_emails([user_email])):
+        return {"error": err}
+
     graph = get_graph(ctx)
-    base = f"/users/{user_email}" if user_email else "/me"
+    base = f"/users/{quote(user_email, safe='')}" if user_email else "/me"
     params = {
         "startDateTime": start_datetime,
         "endDateTime": end_datetime,
@@ -221,6 +225,8 @@ async def update_event(
         updates["location"] = {"displayName": location}
     if is_online_meeting is not None:
         updates["isOnlineMeeting"] = is_online_meeting
+        if is_online_meeting:
+            updates["onlineMeetingProvider"] = "teamsForBusiness"
 
     if not updates:
         return {"error": "No fields to update. Provide at least one field to change."}
