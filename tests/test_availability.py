@@ -110,6 +110,21 @@ class TestGetFreeBusy:
         assert "availability_view_interval" in result["error"]
         mock_graph.post.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_non_multiple_of_five_interval_rejected(self, mock_ctx, mock_graph):
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            availability_view_interval=7,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "5-minute increments" in result["error"]
+        mock_graph.post.assert_not_called()
+
 
 class TestFindMeetingTimes:
     @pytest.mark.asyncio
