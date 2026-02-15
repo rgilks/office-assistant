@@ -229,9 +229,11 @@ async def update_event(
     # so we can fill in the missing pieces.
     start_touched = start_datetime is not None or start_timezone is not None
     end_touched = end_datetime is not None or end_timezone is not None
-    need_existing = (start_datetime is not None) != (start_timezone is not None) or (
-        end_datetime is not None
-    ) != (end_timezone is not None) or (start_touched != end_touched)
+    need_existing = (
+        (start_datetime is not None) != (start_timezone is not None)
+        or (end_datetime is not None) != (end_timezone is not None)
+        or (start_touched != end_touched)
+    )
     existing: dict[str, Any] = {}
     if need_existing:
         try:
@@ -270,10 +272,14 @@ async def update_event(
 
     candidate_start = updates.get("start", existing.get("start"))
     candidate_end = updates.get("end", existing.get("end"))
-    if candidate_start and candidate_end and (
-        err := validate_datetime_order(
-            candidate_start.get("dateTime", ""),
-            candidate_end.get("dateTime", ""),
+    if (
+        candidate_start
+        and candidate_end
+        and (
+            err := validate_datetime_order(
+                candidate_start.get("dateTime", ""),
+                candidate_end.get("dateTime", ""),
+            )
         )
     ):
         return {"error": err}
