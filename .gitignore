@@ -208,3 +208,8 @@ __marimo__/
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/worktrees/
+.mcp.json
+
+# macOS Finder metadata
+.DS_Store
