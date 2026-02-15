@@ -79,6 +79,10 @@ def get_token() -> str:
     client_id, tenant_id = _load_env()
     cache = _build_cache()
 
+    # tenant_id can be:
+    #   - A specific tenant GUID: restricts sign-in to that org's accounts
+    #   - "common": allows both work/school and personal Microsoft accounts
+    #   - "consumers": allows personal Microsoft accounts only
     app = msal.PublicClientApplication(
         client_id,
         authority=f"https://login.microsoftonline.com/{tenant_id}",

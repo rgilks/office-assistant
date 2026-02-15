@@ -13,11 +13,11 @@ Type things like **"What's on my calendar today?"** or **"Schedule a meeting wit
 Before starting, make sure you have:
 
 - **A computer running macOS, Linux, or Windows (with WSL)**
-- **An Office 365 work account** (the kind you use for Outlook and Microsoft Teams at work)
+- **A Microsoft account** -- either a work/school account (Office 365) or a personal account (@outlook.com, @hotmail.com, etc.)
 - **Claude Code** installed -- [installation guide](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
 - **Python 3.11 or newer** -- [download here](https://www.python.org/downloads/) if you don't have it
 
-You'll also need to be able to register an app in your organisation's Azure portal (Step 2 below). If you're not sure whether you can do this, ask your IT department.
+You'll also need to register an app in the Azure portal (Step 2 below). You can do this with any Microsoft account -- a personal @outlook.com account works fine. If you're using a work account, your organisation may restrict app registrations; ask your IT department if you run into issues.
 
 ---
 
@@ -40,7 +40,7 @@ The setup script installs everything automatically, including [uv](https://docs.
 This step tells Microsoft that the Office Assistant is allowed to access calendars on your behalf. You only need to do this once.
 
 1. Open your web browser and go to **[portal.azure.com](https://portal.azure.com)**
-2. Sign in with your **work account** (the same one you use for Outlook / Teams)
+2. Sign in with your **Microsoft account** (work, school, or personal)
 3. In the search bar at the top, type **App registrations** and click the result
 
    > If you don't see "App registrations", your organisation may restrict this. Ask your IT admin to do this step for you.
@@ -48,7 +48,7 @@ This step tells Microsoft that the Office Assistant is allowed to access calenda
 4. Click the **+ New registration** button
 5. Fill in the form:
    - **Name**: `Office Assistant`
-   - **Supported account types**: select **Accounts in this organizational directory only**
+   - **Supported account types**: select **Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)**
    - **Redirect URI**: leave this blank
 6. Click **Register**
 
@@ -56,6 +56,8 @@ You'll now see an overview page for your new app. You need two values from here:
 
 7. Copy the **Application (client) ID** -- it looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
 8. Copy the **Directory (tenant) ID** -- same format, right below the client ID
+
+> **Which Tenant ID to use:** If you signed in with a work/school account, use the Directory (tenant) ID shown. If you signed in with a personal Microsoft account (or want to support both work and personal accounts), use `common` as your TENANT_ID instead.
 
 Now configure two more settings:
 
@@ -106,7 +108,7 @@ Claude will show you a message like:
 
 1. Open that link in your browser
 2. Enter the code shown
-3. Sign in with your work account
+3. Sign in with your Microsoft account
 4. Approve the permissions when asked
 
 That's it! Your login is saved for about 90 days, so you won't need to do this again for a while.
@@ -201,6 +203,13 @@ The other person hasn't shared their calendar with you. Ask them to share it: in
 ### "ErrorAccessDenied" on any calendar operation
 
 The Azure app is missing the required permissions. Go to Azure Portal > App registrations > your app > API permissions and make sure all three permissions (`Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `User.Read`) are listed.
+
+### "Approval required" or admin consent screen
+
+Your organisation requires an admin to approve apps that access calendar data. You have two options:
+
+1. **Ask your IT admin** to grant consent for the app in the Azure portal
+2. **Use a personal Microsoft account** (@outlook.com, @hotmail.com) instead -- register a new app under that account, set the TENANT_ID to `common`, and sign in with that personal account
 
 ### The login expired
 
