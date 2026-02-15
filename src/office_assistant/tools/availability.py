@@ -7,7 +7,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
-from office_assistant.tools._helpers import get_graph
+from office_assistant.tools._helpers import get_graph, validate_emails
 
 # Microsoft Graph encodes each availability slot as a single character.
 _AVAILABILITY_CODES: dict[str, str] = {
@@ -43,6 +43,9 @@ async def get_free_busy(
         availability_view_interval: Size of each time slot in minutes
             (default: 30).
     """
+    if err := validate_emails(emails):
+        return {"error": err}
+
     graph = get_graph(ctx)
 
     body = {
@@ -112,6 +115,9 @@ async def find_meeting_times(
         max_candidates: Maximum number of suggestions to return
             (default: 5).
     """
+    if err := validate_emails(attendees):
+        return {"error": err}
+
     graph = get_graph(ctx)
 
     body: dict[str, Any] = {
@@ -122,6 +128,9 @@ async def find_meeting_times(
         "maxCandidates": max_candidates,
         "returnSuggestionReasons": True,
     }
+
+    if bool(start_datetime) != bool(end_datetime):
+        return {"error": "Provide both start_datetime and end_datetime, or omit both."}
 
     if start_datetime and end_datetime:
         tz = start_timezone or "UTC"

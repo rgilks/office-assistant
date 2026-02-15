@@ -55,6 +55,8 @@ def _save_cache(cache: msal.SerializableTokenCache) -> None:
     if cache.has_state_changed:
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         CACHE_FILE.write_text(cache.serialize())
+        # Restrict to owner-only read/write since this contains auth tokens.
+        CACHE_FILE.chmod(0o600)
 
 
 def get_token() -> str:

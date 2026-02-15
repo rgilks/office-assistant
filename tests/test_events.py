@@ -177,6 +177,41 @@ class TestUpdateEvent:
         assert body["start"]["dateTime"] == "2026-02-16T10:00:00"
         assert body["end"]["dateTime"] == "2026-02-16T10:30:00"
 
+    @pytest.mark.asyncio
+    async def test_create_rejects_invalid_email(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T14:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Europe/London",
+            ctx=mock_ctx,
+            attendees=["not-an-email"],
+        )
+
+        assert "error" in result
+        assert "not-an-email" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_partial_start_time(self, mock_ctx, mock_graph):
+        """Providing start_datetime without timezone fetches the existing timezone."""
+        mock_graph.get.return_value = {
+            "start": {"dateTime": "2026-02-16T09:00:00", "timeZone": "Europe/London"},
+            "end": {"dateTime": "2026-02-16T09:30:00", "timeZone": "Europe/London"},
+        }
+        mock_graph.patch.return_value = SAMPLE_EVENT
+
+        await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            start_datetime="2026-02-16T11:00:00",
+        )
+
+        body = mock_graph.patch.call_args[1]["json"]
+        assert body["start"]["dateTime"] == "2026-02-16T11:00:00"
+        assert body["start"]["timeZone"] == "Europe/London"
+
 
 class TestCancelEvent:
     @pytest.mark.asyncio

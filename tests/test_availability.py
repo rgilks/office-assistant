@@ -134,6 +134,32 @@ class TestFindMeetingTimes:
         assert result["emptySuggestionsReason"] == "AttendeesUnavailable"
 
     @pytest.mark.asyncio
+    async def test_partial_time_constraint_rejected(self, mock_ctx, mock_graph):
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+            start_datetime="2026-02-17T09:00:00",
+            # end_datetime omitted
+        )
+
+        assert "error" in result
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_email_rejected(self, mock_ctx, mock_graph):
+        result = await get_free_busy(
+            emails=["not-valid"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_with_time_constraint(self, mock_ctx, mock_graph):
         mock_graph.post.return_value = {"meetingTimeSuggestions": []}
 

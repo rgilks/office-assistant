@@ -7,7 +7,7 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
-from office_assistant.tools._helpers import get_graph
+from office_assistant.tools._helpers import get_graph, validate_emails
 
 # Fields to request from the Graph API when listing events.
 _EVENT_FIELDS = (
@@ -123,6 +123,9 @@ async def create_event(
         is_online_meeting: Whether to create a Teams meeting link
             (default: True).
     """
+    if attendees and (err := validate_emails(attendees)):
+        return {"error": err}
+
     graph = get_graph(ctx)
 
     event_body: dict[str, Any] = {
@@ -181,15 +184,33 @@ async def update_event(
         location: New location name.
         is_online_meeting: Whether it should be a Teams meeting.
     """
+    if attendees is not None and (err := validate_emails(attendees)):
+        return {"error": err}
+
     graph = get_graph(ctx)
+
+    # If the caller provides a datetime without a timezone (or vice versa),
+    # fetch the existing event so we can fill in the missing piece.
+    need_existing = (start_datetime is not None) != (start_timezone is not None) or (
+        end_datetime is not None
+    ) != (end_timezone is not None)
+    existing: dict[str, Any] = {}
+    if need_existing:
+        existing = await graph.get(f"/me/events/{event_id}", params={"$select": "start,end"})
 
     updates: dict[str, Any] = {}
     if subject is not None:
         updates["subject"] = subject
-    if start_datetime is not None and start_timezone is not None:
-        updates["start"] = {"dateTime": start_datetime, "timeZone": start_timezone}
-    if end_datetime is not None and end_timezone is not None:
-        updates["end"] = {"dateTime": end_datetime, "timeZone": end_timezone}
+    if start_datetime is not None or start_timezone is not None:
+        dt = start_datetime or existing.get("start", {}).get("dateTime")
+        tz = start_timezone or existing.get("start", {}).get("timeZone")
+        if dt and tz:
+            updates["start"] = {"dateTime": dt, "timeZone": tz}
+    if end_datetime is not None or end_timezone is not None:
+        dt = end_datetime or existing.get("end", {}).get("dateTime")
+        tz = end_timezone or existing.get("end", {}).get("timeZone")
+        if dt and tz:
+            updates["end"] = {"dateTime": dt, "timeZone": tz}
     if attendees is not None:
         updates["attendees"] = [
             {"emailAddress": {"address": email}, "type": "required"} for email in attendees

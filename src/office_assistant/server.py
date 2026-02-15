@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+# Import tool modules so their @mcp.tool() decorators register with the server.
 import office_assistant.tools.availability
-
-# Import tool modules to register them with the mcp instance.
 import office_assistant.tools.calendars
 import office_assistant.tools.events  # noqa: F401
 from office_assistant.app import mcp
