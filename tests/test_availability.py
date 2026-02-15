@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from office_assistant.graph_client import GraphApiError
 from office_assistant.tools.availability import find_meeting_times, get_free_busy
 
 
@@ -124,6 +125,55 @@ class TestGetFreeBusy:
         assert "error" in result
         assert "5-minute increments" in result["error"]
         mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_timezone_rejected(self, mock_ctx, mock_graph):
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Not/AZone",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "IANA timezone" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_end_before_start_rejected(self, mock_ctx, mock_graph):
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T17:00:00",
+            end_datetime="2026-02-16T09:00:00",
+            start_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "must be before" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_graph_error_is_normalized(self, mock_ctx, mock_graph):
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=429,
+            code="TooManyRequests",
+            message="Please retry",
+            retry_after_seconds=15,
+        )
+
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert result["errorType"] == "throttled"
+        assert result["statusCode"] == 429
+        assert result["retryAfterSeconds"] == 15
 
 
 class TestFindMeetingTimes:
@@ -256,3 +306,31 @@ class TestFindMeetingTimes:
         slot = body["timeConstraint"]["timeslots"][0]
         assert slot["start"]["dateTime"] == "2026-02-17T09:00:00"
         assert slot["start"]["timeZone"] == "Europe/London"
+
+    @pytest.mark.asyncio
+    async def test_start_timezone_without_window_rejected(self, mock_ctx, mock_graph):
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+            start_timezone="Europe/London",
+        )
+
+        assert "error" in result
+        assert "start_timezone can only be provided" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_time_constraint_end_before_start_rejected(self, mock_ctx, mock_graph):
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+            start_datetime="2026-02-18T09:00:00",
+            end_datetime="2026-02-17T09:00:00",
+            start_timezone="Europe/London",
+        )
+
+        assert "error" in result
+        assert "must be before" in result["error"]
+        mock_graph.post.assert_not_called()

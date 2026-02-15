@@ -7,7 +7,8 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
-from office_assistant.tools._helpers import get_graph
+from office_assistant.graph_client import GraphApiError
+from office_assistant.tools._helpers import get_graph, graph_error_response
 
 
 @mcp.tool()
@@ -19,10 +20,13 @@ async def get_my_profile(ctx: Context) -> dict[str, Any]:
     timezone for date calculations.
     """
     graph = get_graph(ctx)
-    data = await graph.get(
-        "/me",
-        params={"$select": "displayName,mail,userPrincipalName,mailboxSettings"},
-    )
+    try:
+        data = await graph.get(
+            "/me",
+            params={"$select": "displayName,mail,userPrincipalName,mailboxSettings"},
+        )
+    except GraphApiError as exc:
+        return graph_error_response(exc)
     settings = data.get("mailboxSettings", {})
     return {
         "displayName": data.get("displayName"),
@@ -40,7 +44,10 @@ async def list_calendars(ctx: Context) -> dict[str, Any]:
     know about shared calendars.
     """
     graph = get_graph(ctx)
-    data = await graph.get("/me/calendars", params={"$top": "50"})
+    try:
+        data = await graph.get("/me/calendars", params={"$top": "50"})
+    except GraphApiError as exc:
+        return graph_error_response(exc)
     calendars = [
         {
             "id": cal.get("id"),

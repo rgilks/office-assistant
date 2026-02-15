@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from office_assistant.graph_client import GraphApiError
 from office_assistant.tools.calendars import get_my_profile, list_calendars
 
 
@@ -36,6 +37,19 @@ class TestGetMyProfile:
 
         result = await get_my_profile(mock_ctx)
         assert result["email"] == "bob@company.com"
+
+    @pytest.mark.asyncio
+    async def test_graph_error_is_normalized(self, mock_ctx, mock_graph):
+        mock_graph.get.side_effect = GraphApiError(
+            status_code=401,
+            code="InvalidAuthenticationToken",
+            message="Access token expired",
+        )
+
+        result = await get_my_profile(mock_ctx)
+
+        assert result["errorType"] == "auth_error"
+        assert result["statusCode"] == 401
 
 
 class TestListCalendars:
@@ -74,3 +88,16 @@ class TestListCalendars:
         result = await list_calendars(mock_ctx)
         assert result["count"] == 0
         assert result["calendars"] == []
+
+    @pytest.mark.asyncio
+    async def test_list_calendars_graph_error_is_normalized(self, mock_ctx, mock_graph):
+        mock_graph.get.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Forbidden",
+        )
+
+        result = await list_calendars(mock_ctx)
+
+        assert result["errorType"] == "permission_denied"
+        assert result["statusCode"] == 403

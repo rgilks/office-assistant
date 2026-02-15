@@ -14,6 +14,8 @@ Find available meeting times for a group of people using Office 365.
 
 1. Call `get_my_profile` to get the user's timezone.
 2. Parse attendee email addresses and desired meeting duration from the request.
+   Resolve any relative date words into absolute dates in that timezone before
+   calling tools.
 3. If no time window is specified, search the next 5 business days.
 4. Call `find_meeting_times` with the parameters.
 5. Present the suggested times clearly:

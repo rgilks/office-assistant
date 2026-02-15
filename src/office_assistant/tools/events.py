@@ -8,7 +8,14 @@ from urllib.parse import quote
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
-from office_assistant.tools._helpers import get_graph, validate_emails
+from office_assistant.graph_client import GraphApiError
+from office_assistant.tools._helpers import (
+    get_graph,
+    graph_error_response,
+    validate_datetime_order,
+    validate_emails,
+    validate_timezone,
+)
 
 # Fields to request from the Graph API when listing events.
 _EVENT_FIELDS = (
@@ -48,6 +55,10 @@ def _format_event(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _is_access_denied(exc: GraphApiError) -> bool:
+    return exc.status_code == 403 or (exc.code or "").lower() == "erroraccessdenied"
+
+
 @mcp.tool()
 async def list_events(
     start_datetime: str,
@@ -66,6 +77,8 @@ async def list_events(
             Omit to view the authenticated user's calendar.
             Requires that the user has shared their calendar with you.
     """
+    if err := validate_datetime_order(start_datetime, end_datetime):
+        return {"error": err}
     if user_email and (err := validate_emails([user_email])):
         return {"error": err}
 
@@ -81,16 +94,16 @@ async def list_events(
 
     try:
         data = await graph.get(f"{base}/calendarview", params=params)
-    except Exception as exc:
-        error_text = str(exc)
-        if "ErrorAccessDenied" in error_text or "403" in error_text:
-            return {
-                "error": (
+    except GraphApiError as exc:
+        if user_email and _is_access_denied(exc):
+            return graph_error_response(
+                exc,
+                fallback_message=(
                     f"You don't have permission to view {user_email}'s calendar. "
                     "Ask them to share their calendar with you in Outlook."
-                )
-            }
-        raise
+                ),
+            )
+        return graph_error_response(exc)
 
     events = [_format_event(ev) for ev in data.get("value", [])]
     return {"events": events, "count": len(events)}
@@ -129,6 +142,17 @@ async def create_event(
     """
     if attendees and (err := validate_emails(attendees)):
         return {"error": err}
+    if err := validate_timezone(start_timezone, "start_timezone"):
+        return {"error": err}
+    if err := validate_timezone(end_timezone, "end_timezone"):
+        return {"error": err}
+    if err := validate_datetime_order(
+        start_datetime,
+        end_datetime,
+        start_timezone=start_timezone,
+        end_timezone=end_timezone,
+    ):
+        return {"error": err}
 
     graph = get_graph(ctx)
 
@@ -153,7 +177,10 @@ async def create_event(
     if location:
         event_body["location"] = {"displayName": location}
 
-    data = await graph.post("/me/calendar/events", json=event_body)
+    try:
+        data = await graph.post("/me/calendar/events", json=event_body)
+    except GraphApiError as exc:
+        return graph_error_response(exc)
     return _format_event(data)
 
 
@@ -190,17 +217,27 @@ async def update_event(
     """
     if attendees is not None and (err := validate_emails(attendees)):
         return {"error": err}
+    if start_timezone is not None and (err := validate_timezone(start_timezone, "start_timezone")):
+        return {"error": err}
+    if end_timezone is not None and (err := validate_timezone(end_timezone, "end_timezone")):
+        return {"error": err}
 
     graph = get_graph(ctx)
 
     # If the caller provides a datetime without a timezone (or vice versa),
-    # fetch the existing event so we can fill in the missing piece.
+    # or updates only one side of the time window, fetch the existing event
+    # so we can fill in the missing pieces.
+    start_touched = start_datetime is not None or start_timezone is not None
+    end_touched = end_datetime is not None or end_timezone is not None
     need_existing = (start_datetime is not None) != (start_timezone is not None) or (
         end_datetime is not None
-    ) != (end_timezone is not None)
+    ) != (end_timezone is not None) or (start_touched != end_touched)
     existing: dict[str, Any] = {}
     if need_existing:
-        existing = await graph.get(f"/me/events/{event_id}", params={"$select": "start,end"})
+        try:
+            existing = await graph.get(f"/me/events/{event_id}", params={"$select": "start,end"})
+        except GraphApiError as exc:
+            return graph_error_response(exc)
 
     updates: dict[str, Any] = {}
     if subject is not None:
@@ -231,7 +268,20 @@ async def update_event(
     if not updates:
         return {"error": "No fields to update. Provide at least one field to change."}
 
-    data = await graph.patch(f"/me/events/{event_id}", json=updates)
+    candidate_start = updates.get("start", existing.get("start"))
+    candidate_end = updates.get("end", existing.get("end"))
+    if candidate_start and candidate_end and (
+        err := validate_datetime_order(
+            candidate_start.get("dateTime", ""),
+            candidate_end.get("dateTime", ""),
+        )
+    ):
+        return {"error": err}
+
+    try:
+        data = await graph.patch(f"/me/events/{event_id}", json=updates)
+    except GraphApiError as exc:
+        return graph_error_response(exc)
     return _format_event(data)
 
 
@@ -255,8 +305,14 @@ async def cancel_event(
 
     if comment:
         # The /cancel endpoint sends a cancellation message to attendees.
-        await graph.post(f"/me/events/{event_id}/cancel", json={"comment": comment})
+        try:
+            await graph.post(f"/me/events/{event_id}/cancel", json={"comment": comment})
+        except GraphApiError as exc:
+            return graph_error_response(exc)
     else:
-        await graph.delete(f"/me/events/{event_id}")
+        try:
+            await graph.delete(f"/me/events/{event_id}")
+        except GraphApiError as exc:
+            return graph_error_response(exc)
 
     return {"status": "cancelled", "event_id": event_id}

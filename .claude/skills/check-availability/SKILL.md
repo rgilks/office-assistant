@@ -13,6 +13,8 @@ Check people's availability using their Office 365 free/busy schedule.
 
 1. Call `get_my_profile` to get the user's timezone.
 2. Parse the email addresses and time range from the request.
+   Convert relative dates (today/tomorrow/next week) into exact calendar dates
+   in that timezone.
 3. If no time range is given, default to the current business day (9am-5pm)
    in the user's timezone.
 4. Call `get_free_busy` with the parameters.

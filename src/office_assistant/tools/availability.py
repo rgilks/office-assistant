@@ -7,7 +7,14 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
-from office_assistant.tools._helpers import get_graph, validate_emails
+from office_assistant.graph_client import GraphApiError
+from office_assistant.tools._helpers import (
+    get_graph,
+    graph_error_response,
+    validate_datetime_order,
+    validate_emails,
+    validate_timezone,
+)
 
 # Microsoft Graph encodes each availability slot as a single character.
 _AVAILABILITY_CODES: dict[str, str] = {
@@ -54,6 +61,15 @@ async def get_free_busy(
                 "in 5-minute increments."
             )
         }
+    if err := validate_timezone(start_timezone, "start_timezone"):
+        return {"error": err}
+    if err := validate_datetime_order(
+        start_datetime,
+        end_datetime,
+        start_timezone=start_timezone,
+        end_timezone=start_timezone,
+    ):
+        return {"error": err}
 
     graph = get_graph(ctx)
 
@@ -64,7 +80,10 @@ async def get_free_busy(
         "availabilityViewInterval": availability_view_interval,
     }
 
-    data = await graph.post("/me/calendar/getSchedule", json=body)
+    try:
+        data = await graph.post("/me/calendar/getSchedule", json=body)
+    except GraphApiError as exc:
+        return graph_error_response(exc)
 
     results = []
     for schedule in data.get("value", []):
@@ -146,9 +165,25 @@ async def find_meeting_times(
 
     if bool(start_datetime) != bool(end_datetime):
         return {"error": "Provide both start_datetime and end_datetime, or omit both."}
+    if start_timezone and not start_datetime:
+        return {
+            "error": (
+                "start_timezone can only be provided when start_datetime and end_datetime "
+                "are also provided."
+            )
+        }
 
     if start_datetime and end_datetime:
         tz = start_timezone or "UTC"
+        if err := validate_timezone(tz, "start_timezone"):
+            return {"error": err}
+        if err := validate_datetime_order(
+            start_datetime,
+            end_datetime,
+            start_timezone=tz,
+            end_timezone=tz,
+        ):
+            return {"error": err}
         body["timeConstraint"] = {
             "timeslots": [
                 {
@@ -158,7 +193,10 @@ async def find_meeting_times(
             ]
         }
 
-    data = await graph.post("/me/findMeetingTimes", json=body)
+    try:
+        data = await graph.post("/me/findMeetingTimes", json=body)
+    except GraphApiError as exc:
+        return graph_error_response(exc)
 
     suggestions = []
     for suggestion in data.get("meetingTimeSuggestions", []):

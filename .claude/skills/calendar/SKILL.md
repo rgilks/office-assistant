@@ -25,6 +25,8 @@ email, and timezone. Use their timezone for all date/time calculations.
   `user_email`.
 - For relative dates ("today", "tomorrow", "next week"), calculate the actual
   ISO 8601 datetimes using the user's timezone.
+- When you resolve relative dates, confirm the absolute date explicitly
+  (for example: "Tuesday, February 17, 2026") before making changes.
 - Always confirm before creating, updating, or cancelling events. Show a summary
   of what will happen and ask "Shall I go ahead?"
 - Default to Teams meetings when creating events unless the user says otherwise.
