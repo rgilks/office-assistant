@@ -26,6 +26,18 @@ uv run python -m office_assistant.setup
 It will walk them through everything interactively: creating the `.env` file
 and signing in. They just need an Azure App Registration first (see below).
 
+### Re-authentication (token expired, `.env` already exists)
+
+When the `.env` file already exists but the token has expired, the setup script
+skips the interactive `.env` prompts and goes straight to the device code flow.
+In this case you can run it programmatically:
+
+Run `uv run python -m office_assistant.setup` in the background with a long
+timeout (`300000` ms / 5 minutes) using `run_in_background: true`. After it
+starts, read its output to get the device code and URL, then show those to
+the user. The script blocks until the user completes browser sign-in and caches
+the token. Once the background task completes, authentication is restored.
+
 ### Azure App Registration (one-time prerequisite)
 
 The user needs to create an app in Azure before they can authenticate.

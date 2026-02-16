@@ -18,6 +18,28 @@ email, and timezone. Use their timezone for all date/time calculations.
 If the user's timezone is `null`, they are on a personal Microsoft account.
 Ask them what timezone they're in and use that for all date/time calculations.
 
+## Handling authentication
+
+If `get_my_profile` (or any tool call) returns an `auth_required` error with a
+device code, **do NOT** simply show the code and retry. Each retry starts a new
+short-lived device code flow, so the user will never be able to complete sign-in
+in time.
+
+Instead, run the setup script in the background with a long timeout (5 minutes):
+
+```
+uv run python -m office_assistant.setup
+```
+
+This script blocks until the user completes sign-in in their browser and caches
+the token to disk. Run it with `run_in_background: true` and a `timeout` of
+`300000` ms. After it starts, read its output to get the device code and URL to
+show the user. Once the background task completes successfully, retry your
+original tool call.
+
+If `get_my_profile` returns an `auth_error` (not `auth_required`), the token
+may be corrupt. Suggest the user run `/calendar-setup` to troubleshoot.
+
 ## Behaviour
 
 - When showing events, format them clearly: time, subject, location, attendees.
