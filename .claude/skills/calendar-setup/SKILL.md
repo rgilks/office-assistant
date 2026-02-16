@@ -8,6 +8,14 @@ disable-model-invocation: true
 
 Help the user connect their Microsoft account to the calendar assistant.
 
+## How to call tools
+
+The office-assistant MCP server is already registered and running. Call tools
+**directly** using the `mcp__office-assistant__<tool_name>` functions available
+in your tool list. Do **NOT** use Bash, Python scripts, or subprocess calls to
+invoke tools. All tool names below use their short form (e.g. `get_my_profile`);
+the actual callable tool is always `mcp__office-assistant__<short_name>`.
+
 ## Check current state
 
 First, try calling `get_my_profile`. If it succeeds, authentication is already

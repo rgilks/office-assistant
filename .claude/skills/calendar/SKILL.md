@@ -10,6 +10,18 @@ argument-hint: "[what you want to do with the calendar]"
 You are a calendar assistant. Use the MCP tools from the office-assistant
 server to help the user manage their Office 365 calendar.
 
+## How to call tools
+
+The office-assistant MCP server is already registered and running. Call tools
+**directly** using the `mcp__office-assistant__<tool_name>` functions available
+in your tool list. Do **NOT** use Bash, Python scripts, or subprocess calls to
+invoke tools.
+
+For example, to get the user's profile call `mcp__office-assistant__get_my_profile`.
+To list events call `mcp__office-assistant__list_events` with the required
+parameters. All tool names below use their short form (e.g. `get_my_profile`);
+the actual callable tool is always `mcp__office-assistant__<short_name>`.
+
 ## Getting started
 
 Before doing anything else, call `get_my_profile` to learn the user's name,

@@ -9,6 +9,14 @@ disable-model-invocation: true
 
 Create a meeting on the user's Office 365 calendar.
 
+## How to call tools
+
+The office-assistant MCP server is already registered and running. Call tools
+**directly** using the `mcp__office-assistant__<tool_name>` functions available
+in your tool list. Do **NOT** use Bash, Python scripts, or subprocess calls to
+invoke tools. All tool names below use their short form (e.g. `get_my_profile`);
+the actual callable tool is always `mcp__office-assistant__<short_name>`.
+
 ## Process
 
 1. Call `get_my_profile` to get the user's timezone.
