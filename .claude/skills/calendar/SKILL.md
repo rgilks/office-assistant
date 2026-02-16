@@ -70,6 +70,20 @@ original tool call.
 If `get_my_profile` returns an `auth_error` (not `auth_required`), the token
 may be corrupt. Suggest the user run `/calendar-setup` to troubleshoot.
 
+## Formatting
+
+This tool is designed for non-technical users such as executive assistants.
+**Never** expose raw JSON, API responses, event IDs, technical field names, or
+internal details. All output must be plain, conversational English.
+
+- When confirming an action, show a short human-readable summary (subject, date,
+  time, duration, attendees, location). Do not echo back field names or values
+  like `is_online_meeting: false` or `startTimezone`.
+- After a tool call succeeds, summarise the result in one or two sentences. Do
+  not paste or quote the raw tool response.
+- If a tool call fails, explain the problem in plain language. Include the error
+  message only if it is meaningful to a non-technical user.
+
 ## Behaviour
 
 - When showing events, format them clearly: time, subject, location, attendees.
