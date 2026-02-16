@@ -54,10 +54,9 @@ This step tells Microsoft that the Office Assistant is allowed to access calenda
    - **Redirect URI**: leave this blank
 6. Click **Register**
 
-You'll now see an overview page for your new app. You need two values from here:
+You'll now see an overview page for your new app:
 
-7. Copy the **Application (client) ID** -- it looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
-8. Copy the **Directory (tenant) ID** -- same format, right below the client ID
+7. Copy the **Application (client) ID** -- it looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890` (you'll need this in Step 3)
 
 Now configure two more settings:
 
@@ -114,7 +113,7 @@ Show me my meetings for next week
 What do I have on Thursday?
 ```
 
-### View someone else's calendar
+### View someone else's calendar (work/school accounts only)
 
 ```
 What's on Alice's calendar tomorrow?
@@ -131,7 +130,7 @@ Book a 1-hour meeting with alice@company.com and bob@company.com on Friday at 10
 Set up a meeting about budget planning next Tuesday at 2pm in the Board Room
 ```
 
-By default, all meetings include a Microsoft Teams link. If you want an in-person-only meeting, just say so:
+For work/school accounts, meetings include a Microsoft Teams link by default. If you want an in-person-only meeting, just say so:
 
 ```
 Schedule an in-person meeting in Room 4A tomorrow at 11am
@@ -145,14 +144,14 @@ Cancel tomorrow's budget meeting
 Cancel the 3pm meeting and let everyone know it's been postponed
 ```
 
-### Check availability
+### Check availability (work/school accounts only)
 
 ```
 Is alice@company.com free tomorrow afternoon?
 Check if bob@company.com and carol@company.com are available on Thursday
 ```
 
-### Find a time that works for everyone
+### Find a time that works for everyone (work/school accounts only)
 
 ```
 Find a time for a 30-minute meeting with alice@company.com next week
@@ -177,7 +176,7 @@ You can also use these shortcuts:
 
 ### "CLIENT_ID and TENANT_ID must be set"
 
-The `.env` file is missing or empty. Make sure you completed Step 3 above and that the file contains both values.
+The `.env` file is missing or incomplete. Run `uv run python -m office_assistant.setup` to create it interactively.
 
 ### "Could not start device-code flow"
 

@@ -24,46 +24,63 @@ def _dotenv_path() -> Path:
     return Path(os.environ.get("DOTENV_PATH", ".env"))
 
 
-def _env_file_exists() -> bool:
+def _load_existing_env() -> tuple[str, str]:
+    """Load CLIENT_ID and TENANT_ID from existing .env file."""
     path = _dotenv_path()
     if not path.exists():
-        return False
+        return "", ""
     from dotenv import dotenv_values
 
     config = dotenv_values(path)
-    return bool(config.get("CLIENT_ID")) and bool(config.get("TENANT_ID"))
+    return config.get("CLIENT_ID", ""), config.get("TENANT_ID", "")
+
+
+def _env_is_complete() -> bool:
+    client_id, tenant_id = _load_existing_env()
+    return bool(client_id) and bool(tenant_id)
 
 
 def _create_env_file() -> None:
     """Prompt the user for credentials and write the .env file."""
+    existing_client_id, existing_tenant_id = _load_existing_env()
+
+    if existing_client_id and existing_tenant_id:
+        return  # Already complete
+
     print()
-    print("No .env file found (or it's missing credentials).")
-    print("Let's set one up now.")
+    if existing_client_id or existing_tenant_id:
+        print("Your .env file is incomplete. Let's fill in the missing values.")
+    else:
+        print("No .env file found. Let's set one up now.")
     print()
-    print("You'll need an Azure App Registration.")
+    print("You'll need an Azure App Registration first.")
     print("See /calendar-setup in Claude Code for step-by-step instructions,")
     print("or visit: https://portal.azure.com → App registrations")
     print()
 
-    client_id = input("Paste your Application (client) ID: ").strip()
+    client_id = existing_client_id
     if not client_id:
-        print("Error: CLIENT_ID is required.", file=sys.stderr)
-        sys.exit(1)
-
-    print()
-    print("Account type:")
-    print("  1. Work/school account (Microsoft 365)")
-    print("  2. Personal account (outlook.com, hotmail.com, live.com)")
-    print()
-    choice = input("Enter 1 or 2: ").strip()
-
-    if choice == "2":
-        tenant_id = "consumers"
-    else:
-        tenant_id = input("Paste your Directory (tenant) ID: ").strip()
-        if not tenant_id:
-            print("Error: TENANT_ID is required.", file=sys.stderr)
+        client_id = input("Paste your Application (client) ID: ").strip()
+        if not client_id:
+            print("Error: CLIENT_ID is required.", file=sys.stderr)
             sys.exit(1)
+
+    tenant_id = existing_tenant_id
+    if not tenant_id:
+        print()
+        print("Account type:")
+        print("  1. Work/school account (Microsoft 365)")
+        print("  2. Personal account (outlook.com, hotmail.com, live.com)")
+        print()
+        choice = input("Enter 1 or 2: ").strip()
+
+        if choice == "2":
+            tenant_id = "consumers"
+        else:
+            tenant_id = input("Paste your Directory (tenant) ID: ").strip()
+            if not tenant_id:
+                print("Error: TENANT_ID is required.", file=sys.stderr)
+                sys.exit(1)
 
     path = _dotenv_path()
     path.write_text(
@@ -138,7 +155,7 @@ def _authenticate() -> None:
 def main() -> None:
     print("=== Office Assistant Setup ===")
 
-    if not _env_file_exists():
+    if not _env_is_complete():
         _create_env_file()
 
     _authenticate()
