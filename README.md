@@ -37,11 +37,13 @@ Book a 1-hour meeting with alice@company.com and bob@company.com on Friday at 10
 Set up a meeting about budget planning next Tuesday at 2pm in the Board Room
 ```
 
-Meetings include a Microsoft Teams link by default. If you want an in-person meeting, just say so:
+For work/school accounts, meetings include a Microsoft Teams link by default. If you want an in-person meeting, just say so:
 
 ```
 Schedule an in-person meeting in Room 4A tomorrow at 11am
 ```
+
+> Personal accounts don't support Teams meeting links. Meetings are created as in-person by default.
 
 ### Change or cancel meetings
 
@@ -115,7 +117,22 @@ You can also type these shortcuts to be guided step by step:
 
 ### Personal accounts
 
-If you're using a personal Microsoft account (@outlook.com, @hotmail.com), most features work -- including viewing your calendar, creating and managing events, recurring meetings, and accepting or declining invitations. A few features are only available with work/school accounts: checking other people's availability, viewing other people's calendars, delegate calendar access, and meeting room discovery.
+If you're using a personal Microsoft account (@outlook.com, @hotmail.com), most features work:
+
+- Viewing your calendar
+- Creating, editing, and cancelling events
+- Recurring meetings
+- Accepting, declining, or tentatively accepting invitations
+- Adding notes and locations to events
+
+A few features require a **work/school account** (Microsoft 365):
+
+- Checking other people's availability
+- Finding meeting times across multiple people
+- Viewing other people's calendars
+- Delegate calendar access (managing someone else's calendar)
+- Meeting room discovery and booking
+- Microsoft Teams meeting links
 
 ---
 
@@ -284,7 +301,10 @@ The other person hasn't shared their calendar with you. Ask them to share it: in
 
 ### "ErrorAccessDenied" on any calendar operation
 
-The Azure app is missing some permissions. Go back to Step 2 above and check that all the required permissions are listed under **API permissions**.
+This usually means one of two things:
+
+1. **Missing permissions**: Go back to Step 2 above and check that all the required permissions are listed under **API permissions** in the Azure portal.
+2. **Personal account limitation**: Some features (checking availability, finding meeting times, room booking) only work with work/school accounts. The assistant will tell you if this is the case.
 
 ### "Approval required" or admin consent screen
 

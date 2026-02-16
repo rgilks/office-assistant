@@ -38,16 +38,19 @@ Office 365 calendar assistant powered by Claude Code and Microsoft Graph API.
 - Integration tests use `respx` to mock HTTP responses with the real `GraphClient`
 - List endpoints (`list_events`, `list_rooms`, `list_calendars`) use `mock_graph.get_all` (paginated)
 - Single-resource endpoints (`update_event` fetch) use `mock_graph.get`
-- Coverage minimum: 80% (enforced in CI), currently ~98%
+- Coverage minimum: 80% (enforced in CI), currently ~95%
 
 ## Key patterns
 
 - All Graph API errors are normalized to `GraphApiError` dataclass with `status_code`, `code`, `message`, `request_id`
 - Tool error responses use `graph_error_response()` for consistent shape: `{error, errorType, statusCode, ...}`
 - Transient errors (429, 503, 504) are retried with exponential backoff (max 3 attempts)
+- Auth retry on 401 (always) or 403 + `InvalidAuthenticationToken` only — other 403 codes (e.g. `ErrorAccessDenied`) are real permission errors and do NOT trigger re-auth
 - Pagination via `graph.get_all()` follows `@odata.nextLink` automatically
 - Delegate calendar access uses `/users/{email}` path prefix instead of `/me`
 - Personal vs org accounts: `TENANT_ID=consumers` for personal, org tenant GUID for work/school
+- `is_online_meeting` defaults to `False` (safe for personal accounts); skills set it to `True` for work/school accounts
+- Org-only tools (`get_free_busy`, `find_meeting_times`, `list_rooms`) return clear personal-account-specific error messages on 400/401/403
 
 ## Adding a new tool
 
