@@ -6,7 +6,7 @@ description: >
 disable-model-invocation: true
 ---
 
-Help the user connect their Office 365 account to the calendar assistant.
+Help the user connect their Microsoft account to the calendar assistant.
 
 ## Check current state
 
@@ -15,67 +15,58 @@ working. Tell the user they're connected and show their name and email.
 
 ## If authentication fails
 
-Walk the user through these steps:
+### Quick setup
 
-### Step 1: Azure App Registration (one-time)
+Tell the user to run this single command in a terminal:
 
-If the user doesn't already have a CLIENT_ID and TENANT_ID, they need to
-register an app in Azure:
+```
+uv run python -m office_assistant.setup
+```
+
+It will walk them through everything interactively: creating the `.env` file
+and signing in. They just need an Azure App Registration first (see below).
+
+### Azure App Registration (one-time prerequisite)
+
+The user needs to create an app in Azure before they can authenticate.
+**Ask first**: are you using a **work/school** account or a **personal**
+Microsoft account (outlook.com, hotmail.com, live.com)?
 
 1. Go to https://portal.azure.com
-2. Search for "App registrations" and click it
-3. Click "New registration"
-4. Set:
-   - Name: "Office Assistant"
-   - Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+2. Search for "App registrations" → click it → "New registration"
+3. Set:
+   - Name: `Office Assistant`
+   - Supported account types:
+     - **Work/school**: "Accounts in this organizational directory only"
+     - **Personal**: "Personal Microsoft accounts only"
    - Redirect URI: leave blank
-5. Click "Register"
-6. On the overview page, copy:
-   - **Application (client) ID** → this is your CLIENT_ID
-   - **Directory (tenant) ID** → this is your TENANT_ID
-7. Go to **Authentication** in the left menu
-   - Under "Advanced settings", set **Allow public client flows** to **Yes**
-   - Click Save
-8. Go to **API permissions** in the left menu
-   - Click "Add a permission" → "Microsoft Graph" → "Delegated permissions"
-   - Add: `Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `User.Read`
+4. Click "Register"
+5. Copy the **Application (client) ID** from the overview page
+6. Go to **Authentication** → set **Allow public client flows** to **Yes** → Save
+7. Go to **API permissions** → "Add a permission" → Microsoft Graph → Delegated:
+   - **Work/school**: `Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `User.Read`
+   - **Personal**: `Calendars.ReadWrite` and `User.Read` only
    - Click "Add permissions"
 
-### Step 2: Configure the .env file
+> **Tip:** Work/school accounts may need an Azure AD admin to grant consent.
+> If you can't get admin approval, use a personal account instead — it doesn't
+> require any admin.
 
-Create or update the `.env` file in the project root with:
-
-```
-CLIENT_ID=<paste your Application (client) ID>
-TENANT_ID=<paste your Directory (tenant) ID>
-```
-
-> If using a personal Microsoft account (@outlook.com, @hotmail.com), set
-> `TENANT_ID=common` instead of the Directory (tenant) ID from the portal.
-
-### Step 3: Authenticate
-
-Call `get_my_profile` again. The MCP server will start a device code login flow.
-The user will see instructions in their terminal to:
-
-1. Open https://microsoft.com/devicelogin in their browser
-2. Enter the code shown
-3. Sign in with their Microsoft account (work, school, or personal)
-
-Once complete, their token is cached and they won't need to do this again for
-about 90 days.
+Then run `uv run python -m office_assistant.setup` and follow the prompts.
 
 ## Troubleshooting
 
-- **"CLIENT_ID and TENANT_ID must be set"**: The .env file is missing or
-  doesn't have the right values. Check it exists in the project root.
-- **"ErrorAccessDenied"**: The app doesn't have the right permissions. Go back
-  to Azure Portal → App registrations → your app → API permissions and check
-  that all three permissions are listed and granted.
+- **"CLIENT_ID and TENANT_ID must be set"**: Run
+  `uv run python -m office_assistant.setup` to create the `.env` file.
+- **"Application is configured for use by Microsoft Account users only"** /
+  **"AADSTS9002346"**: Set `TENANT_ID=consumers` in `.env` for personal
+  accounts.
+- **Device code expires immediately**: The requested scopes may be wrong.
+  Personal accounts don't support `Calendars.ReadWrite.Shared` — make sure
+  you're on the latest code.
+- **"ErrorAccessDenied"**: Check API permissions in the Azure Portal.
 - **"Approval required" / admin consent screen**: The user's organisation
-  requires admin approval for calendar apps. They can either ask their IT admin
-  to grant consent, or use a personal Microsoft account (@outlook.com) instead
-  with `TENANT_ID=common`.
-- **Token expired**: Just run any calendar command and it will automatically
-  re-authenticate if the refresh token is still valid. If not, the device code
-  flow will start again.
+  requires admin approval. They can ask their IT admin to grant consent, or
+  use a personal Microsoft account instead.
+- **Want to start fresh?**: Delete `~/.office-assistant/token_cache.json` and
+  run setup again.

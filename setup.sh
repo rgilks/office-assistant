@@ -19,17 +19,7 @@ echo "Using $(uv --version)"
 echo "Installing dependencies..."
 uv sync
 
-# 3. Create .env from example if needed
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo ""
-    echo ">>> Created .env file from template."
-    echo ">>> You need to add your Azure credentials before authenticating."
-    echo ">>> Run /calendar-setup in Claude Code for step-by-step instructions."
-    echo ""
-fi
-
-# 4. Register MCP server with Claude Code
+# 3. Register MCP server with Claude Code
 echo "Registering MCP server with Claude Code..."
 claude mcp add \
     --transport stdio \
@@ -38,11 +28,11 @@ claude mcp add \
     office-assistant -- \
     uv run --directory "$SCRIPT_DIR" python -m office_assistant
 
+# 4. Interactive credential setup and authentication
+echo ""
+uv run python -m office_assistant.setup
+
 echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "Next steps:"
-echo "  1. Add your Azure credentials to .env (run /calendar-setup for help)"
-echo "  2. Start Claude Code in this directory"
-echo "  3. Type /calendar-setup to authenticate"
-echo "  4. Type /calendar to start managing calendars"
+echo "Type /calendar in Claude Code to start managing your calendar."

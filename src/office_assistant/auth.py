@@ -2,6 +2,10 @@
 
 Tokens are cached to ~/.office-assistant/token_cache.json so the user
 only needs to authenticate once (refresh tokens last ~90 days).
+
+Supports both organisational (work/school) and personal Microsoft accounts.
+Set ``TENANT_ID=consumers`` in ``.env`` for personal accounts, or use your
+Azure AD tenant ID for organisational accounts.
 """
 
 from __future__ import annotations
@@ -15,11 +19,27 @@ from dotenv import dotenv_values
 
 CACHE_DIR = Path.home() / ".office-assistant"
 CACHE_FILE = CACHE_DIR / "token_cache.json"
-SCOPES = [
+
+# Organisational accounts support shared calendar access; personal accounts
+# do not, so we request a narrower set of scopes for consumer tenants.
+_ORG_SCOPES = [
     "Calendars.ReadWrite",
     "Calendars.ReadWrite.Shared",
     "User.Read",
 ]
+_PERSONAL_SCOPES = [
+    "Calendars.ReadWrite",
+    "User.Read",
+]
+
+# Tenant IDs that indicate a personal / multi-tenant authority rather than
+# a specific Azure AD organisation.
+_NON_ORG_TENANTS = {"consumers", "common"}
+
+
+def _is_personal_tenant(tenant_id: str) -> bool:
+    """Return True if *tenant_id* targets personal Microsoft accounts."""
+    return tenant_id.lower() in _NON_ORG_TENANTS
 
 
 def _load_env() -> tuple[str, str]:
@@ -28,6 +48,9 @@ def _load_env() -> tuple[str, str]:
     Checks the DOTENV_PATH environment variable first (set by setup.sh
     via the MCP ``-e`` flag), then falls back to ``.env`` in the current
     working directory.
+
+    For personal Microsoft accounts set ``TENANT_ID=consumers``.
+    For organisational (work/school) accounts use your Azure AD tenant ID.
     """
     dotenv_path = os.environ.get("DOTENV_PATH", ".env")
     config = dotenv_values(dotenv_path)
@@ -83,22 +106,27 @@ def get_token() -> str:
     #   - A specific tenant GUID: restricts sign-in to that org's accounts
     #   - "common": allows both work/school and personal Microsoft accounts
     #   - "consumers": allows personal Microsoft accounts only
+    authority = f"https://login.microsoftonline.com/{tenant_id}"
+
+    # Choose the right scope set for the account type.
+    scopes = _PERSONAL_SCOPES if _is_personal_tenant(tenant_id) else _ORG_SCOPES
+
     app = msal.PublicClientApplication(
         client_id,
-        authority=f"https://login.microsoftonline.com/{tenant_id}",
+        authority=authority,
         token_cache=cache,
     )
 
     # Try silent acquisition first (cached / refresh token).
     accounts = app.get_accounts()
     if accounts:
-        result = app.acquire_token_silent(SCOPES, account=accounts[0])
+        result = app.acquire_token_silent(scopes, account=accounts[0])
         if result and "access_token" in result:
             _save_cache(cache)
             return result["access_token"]
 
     # Fall back to device-code flow.
-    flow = app.initiate_device_flow(scopes=SCOPES)
+    flow = app.initiate_device_flow(scopes=scopes)
     if "user_code" not in flow:
         raise RuntimeError(
             f"Could not start device-code flow: {flow.get('error_description', 'Unknown error')}"

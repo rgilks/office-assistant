@@ -11,32 +11,54 @@ from office_assistant.tools.calendars import get_my_profile, list_calendars
 class TestGetMyProfile:
     @pytest.mark.asyncio
     async def test_returns_profile(self, mock_ctx, mock_graph):
-        mock_graph.get.return_value = {
-            "displayName": "Alice Smith",
-            "mail": "alice@company.com",
-            "userPrincipalName": "alice@company.com",
-            "mailboxSettings": {"timeZone": "Europe/London"},
-        }
+        mock_graph.get.side_effect = [
+            {
+                "displayName": "Alice Smith",
+                "mail": "alice@company.com",
+                "userPrincipalName": "alice@company.com",
+            },
+            {"timeZone": "Europe/London"},
+        ]
 
         result = await get_my_profile(mock_ctx)
 
         assert result["displayName"] == "Alice Smith"
         assert result["email"] == "alice@company.com"
         assert result["timezone"] == "Europe/London"
-        mock_graph.get.assert_called_once()
+        assert mock_graph.get.call_count == 2
 
     @pytest.mark.asyncio
     async def test_falls_back_to_upn(self, mock_ctx, mock_graph):
         """When mail is null, use userPrincipalName."""
-        mock_graph.get.return_value = {
-            "displayName": "Bob",
-            "mail": None,
-            "userPrincipalName": "bob@company.com",
-            "mailboxSettings": {},
-        }
+        mock_graph.get.side_effect = [
+            {
+                "displayName": "Bob",
+                "mail": None,
+                "userPrincipalName": "bob@company.com",
+            },
+            {"timeZone": "UTC"},
+        ]
 
         result = await get_my_profile(mock_ctx)
         assert result["email"] == "bob@company.com"
+
+    @pytest.mark.asyncio
+    async def test_timezone_none_for_personal_accounts(self, mock_ctx, mock_graph):
+        """Personal accounts return 403 for mailboxSettings."""
+        mock_graph.get.side_effect = [
+            {
+                "displayName": "Carol",
+                "mail": "carol@hotmail.com",
+                "userPrincipalName": "carol@hotmail.com",
+            },
+            GraphApiError(status_code=403, code="ErrorAccessDenied", message="Forbidden"),
+        ]
+
+        result = await get_my_profile(mock_ctx)
+
+        assert result["displayName"] == "Carol"
+        assert result["email"] == "carol@hotmail.com"
+        assert result["timezone"] is None
 
     @pytest.mark.asyncio
     async def test_graph_error_is_normalized(self, mock_ctx, mock_graph):

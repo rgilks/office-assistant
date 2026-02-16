@@ -23,15 +23,24 @@ async def get_my_profile(ctx: Context) -> dict[str, Any]:
     try:
         data = await graph.get(
             "/me",
-            params={"$select": "displayName,mail,userPrincipalName,mailboxSettings"},
+            params={"$select": "displayName,mail,userPrincipalName"},
         )
     except GraphApiError as exc:
         return graph_error_response(exc)
-    settings = data.get("mailboxSettings", {})
+
+    # mailboxSettings (which contains timezone) is only available for
+    # work/school accounts.  Personal Microsoft accounts return 403.
+    timezone = None
+    try:
+        settings = await graph.get("/me/mailboxSettings", params={"$select": "timeZone"})
+        timezone = settings.get("timeZone")
+    except GraphApiError:
+        pass
+
     return {
         "displayName": data.get("displayName"),
         "email": data.get("mail") or data.get("userPrincipalName"),
-        "timezone": settings.get("timeZone"),
+        "timezone": timezone,
     }
 
 

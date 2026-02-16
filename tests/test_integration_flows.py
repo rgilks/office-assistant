@@ -41,8 +41,13 @@ async def test_profile_and_calendar_list_flow(integration_ctx):
                     "displayName": "Alice Smith",
                     "mail": "alice@company.com",
                     "userPrincipalName": "alice@company.com",
-                    "mailboxSettings": {"timeZone": "Europe/London"},
                 },
+            )
+        )
+        router.get("/v1.0/me/mailboxSettings").mock(
+            return_value=Response(
+                200,
+                json={"timeZone": "Europe/London"},
             )
         )
         router.get("/v1.0/me/calendars").mock(

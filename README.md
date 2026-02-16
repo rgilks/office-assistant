@@ -48,7 +48,9 @@ This step tells Microsoft that the Office Assistant is allowed to access calenda
 4. Click the **+ New registration** button
 5. Fill in the form:
    - **Name**: `Office Assistant`
-   - **Supported account types**: select **Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)**
+   - **Supported account types**: choose based on your account:
+     - **Work/school account**: "Accounts in this organizational directory only"
+     - **Personal account** (@outlook.com, @hotmail.com): "Personal Microsoft accounts only"
    - **Redirect URI**: leave this blank
 6. Click **Register**
 
@@ -56,8 +58,6 @@ You'll now see an overview page for your new app. You need two values from here:
 
 7. Copy the **Application (client) ID** -- it looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
 8. Copy the **Directory (tenant) ID** -- same format, right below the client ID
-
-> **Which Tenant ID to use:** If you signed in with a work/school account, use the Directory (tenant) ID shown. If you signed in with a personal Microsoft account (or want to support both work and personal accounts), use `common` as your TENANT_ID instead.
 
 Now configure two more settings:
 
@@ -70,39 +70,26 @@ Now configure two more settings:
     - Click **+ Add a permission**
     - Click **Microsoft Graph**
     - Click **Delegated permissions**
-    - Search for and tick these three permissions:
+    - Search for and tick these permissions:
       - `Calendars.ReadWrite`
-      - `Calendars.ReadWrite.Shared`
+      - `Calendars.ReadWrite.Shared` (work/school accounts only -- skip this for personal accounts)
       - `User.Read`
     - Click **Add permissions**
 
-### Step 3: Add your credentials
+### Step 3: Sign in
 
-Open the `.env` file in the `office-assistant` folder (it was created by the setup script) and paste in the two values you copied:
-
-```
-CLIENT_ID=a1b2c3d4-e5f6-7890-abcd-ef1234567890
-TENANT_ID=f9e8d7c6-b5a4-3210-fedc-ba9876543210
-```
-
-Replace those example values with your real ones from the Azure app registration.
-
-### Step 4: Sign in
-
-Start Claude Code in the `office-assistant` directory:
+Run the interactive setup command:
 
 ```bash
 cd office-assistant
-claude
+uv run python -m office_assistant.setup
 ```
 
-Then type:
+It will prompt you for:
+- Your **Application (client) ID** (from step 7 above)
+- Whether you're using a **work/school** or **personal** account
 
-```
-/calendar-setup
-```
-
-Claude will show you a message like:
+Then it will show a sign-in message like:
 
 > To sign in, use a web browser to open https://microsoft.com/devicelogin and enter the code **ABCD1234**
 
@@ -202,14 +189,18 @@ The other person hasn't shared their calendar with you. Ask them to share it: in
 
 ### "ErrorAccessDenied" on any calendar operation
 
-The Azure app is missing the required permissions. Go to Azure Portal > App registrations > your app > API permissions and make sure all three permissions (`Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `User.Read`) are listed.
+The Azure app is missing the required permissions. Go to Azure Portal > App registrations > your app > API permissions and check that the right permissions are listed. Note: personal accounts don't support `Calendars.ReadWrite.Shared`.
 
 ### "Approval required" or admin consent screen
 
 Your organisation requires an admin to approve apps that access calendar data. You have two options:
 
 1. **Ask your IT admin** to grant consent for the app in the Azure portal
-2. **Use a personal Microsoft account** (@outlook.com, @hotmail.com) instead -- register a new app under that account, set the TENANT_ID to `common`, and sign in with that personal account
+2. **Use a personal Microsoft account** (@outlook.com, @hotmail.com) instead -- register a new app under that account and sign in with it
+
+### Some features don't work with my personal account
+
+Personal Microsoft accounts have limited Graph API support. Checking other people's availability (`/check-availability`, `/find-time`) and viewing other people's calendars are only available with work/school accounts. Your own calendar, creating events, and managing events all work fine.
 
 ### The login expired
 

@@ -160,9 +160,11 @@ async def create_event(
         "subject": subject,
         "start": {"dateTime": start_datetime, "timeZone": start_timezone},
         "end": {"dateTime": end_datetime, "timeZone": end_timezone},
-        "isOnlineMeeting": is_online_meeting,
     }
 
+    # Online meetings (Teams) are only supported for work/school accounts.
+    # Personal accounts silently ignore isOnlineMeeting.
+    event_body["isOnlineMeeting"] = is_online_meeting
     if is_online_meeting:
         event_body["onlineMeetingProvider"] = "teamsForBusiness"
 
