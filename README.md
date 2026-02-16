@@ -151,6 +151,19 @@ cd office-assistant
 </details>
 
 <details>
+<summary><strong>"git" is not recognised / command not found</strong></summary>
+
+Git doesn't come pre-installed on most computers. Here's how to get it:
+
+- **Windows (WSL)**: In your WSL terminal, run `sudo apt install git`
+- **Mac**: Type `git` in the terminal -- macOS will offer to install the developer tools for you. Click **Install** and wait for it to finish.
+- **Windows (without WSL)**: Download and install from [git-scm.com](https://git-scm.com/download/win), then restart your terminal.
+
+If you're not comfortable with this step, ask your IT department -- it takes less than a minute.
+
+</details>
+
+<details>
 <summary><strong>Windows users: about WSL</strong></summary>
 
 Office Assistant runs inside WSL (Windows Subsystem for Linux), which gives you a Linux environment on your Windows PC. Most modern Windows work computers already have this installed. To check, open PowerShell and type `wsl --status`. If it's not installed, your IT department can set it up by running `wsl --install` in an administrator PowerShell -- it takes about 5 minutes and requires one restart.
