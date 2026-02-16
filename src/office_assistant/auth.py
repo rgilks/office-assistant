@@ -13,8 +13,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 from pathlib import Path
+from typing import Any
 
 import msal
 from dotenv import dotenv_values
@@ -23,6 +23,32 @@ logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path.home() / ".office-assistant"
 CACHE_FILE = CACHE_DIR / "token_cache.json"
+
+
+class AuthenticationRequired(Exception):
+    """Raised when the user needs to sign in via the device code flow.
+
+    This is NOT an error — it's a signal that the caller should show the
+    user a friendly sign-in message with the URL and code.
+
+    The ``flow`` dict is the MSAL device-code flow object, which can be
+    passed to ``complete_device_flow()`` to block until sign-in completes
+    (used by the interactive setup script).
+    """
+
+    def __init__(
+        self,
+        url: str,
+        user_code: str,
+        message: str,
+        flow: dict[str, Any],
+    ) -> None:
+        super().__init__(message)
+        self.url = url
+        self.user_code = user_code
+        self.message = message
+        self.flow = flow
+
 
 # Organisational accounts support shared calendar access; personal accounts
 # do not, so we request a narrower set of scopes for consumer tenants.
@@ -139,8 +165,40 @@ def get_token() -> str:
         logger.error("Device-code flow failed: %s", error_desc)
         raise RuntimeError(f"Could not start device-code flow: {error_desc}")
 
-    # Print to stderr because stdout is the MCP stdio transport.
-    print(flow["message"], file=sys.stderr, flush=True)
+    # When running as an MCP server, we can't block waiting for the user
+    # to sign in — stdout is the MCP transport so they'd never see the
+    # device code.  Instead, raise an exception that the tools layer can
+    # catch and show as a friendly chat message.
+    #
+    # When running interactively (setup.py), the caller catches this
+    # exception and handles the flow itself.
+    url = flow.get("verification_uri", "https://microsoft.com/devicelogin")
+    user_code = flow.get("user_code", "")
+    raise AuthenticationRequired(
+        url=url,
+        user_code=user_code,
+        message=flow.get("message", f"Go to {url} and enter the code {user_code}"),
+        flow=flow,
+    )
+
+
+def complete_device_flow(flow: dict[str, Any]) -> str:
+    """Block until the user completes the device code sign-in.
+
+    This is used by the interactive setup script.  The MCP server should
+    NOT call this — it should raise ``AuthenticationRequired`` instead and
+    let the user sign in asynchronously.
+
+    Returns:
+        The access token string.
+
+    Raises:
+        RuntimeError: If authentication fails.
+    """
+    client_id, tenant_id = _load_env()
+    cache = _build_cache()
+    authority = f"https://login.microsoftonline.com/{tenant_id}"
+    app = msal.PublicClientApplication(client_id, authority=authority, token_cache=cache)
 
     result = app.acquire_token_by_device_flow(flow)
     _save_cache(cache)

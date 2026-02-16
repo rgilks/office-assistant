@@ -9,8 +9,10 @@ from urllib.parse import quote
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError
 from office_assistant.tools._helpers import (
+    auth_required_response,
     get_graph,
     graph_error_response,
     validate_datetime_order,
@@ -210,6 +212,8 @@ async def list_events(
 
     try:
         data = await graph.get_all(f"{base}/calendarview", params=params)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         if user_email and _is_access_denied(exc):
             return graph_error_response(
@@ -359,6 +363,8 @@ async def create_event(
 
     try:
         data = await graph.post(f"{base}/calendar/events", json=event_body)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return _delegate_error(exc, user_email)
     return _format_event(data)
@@ -426,6 +432,8 @@ async def update_event(
             existing = await graph.get(
                 f"{base}/events/{event_id}", params={"$select": "start,end"}
             )
+        except AuthenticationRequired as exc:
+            return auth_required_response(exc)
         except GraphApiError as exc:
             return _delegate_error(exc, user_email)
 
@@ -474,6 +482,8 @@ async def update_event(
 
     try:
         data = await graph.patch(f"{base}/events/{event_id}", json=updates)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return _delegate_error(exc, user_email)
     return _format_event(data)
@@ -508,11 +518,15 @@ async def cancel_event(
         # The /cancel endpoint sends a cancellation message to attendees.
         try:
             await graph.post(f"{base}/events/{event_id}/cancel", json={"comment": comment})
+        except AuthenticationRequired as exc:
+            return auth_required_response(exc)
         except GraphApiError as exc:
             return _delegate_error(exc, user_email)
     else:
         try:
             await graph.delete(f"{base}/events/{event_id}")
+        except AuthenticationRequired as exc:
+            return auth_required_response(exc)
         except GraphApiError as exc:
             return _delegate_error(exc, user_email)
 
@@ -557,6 +571,8 @@ async def respond_to_event(
 
     try:
         await graph.post(f"{base}/events/{event_id}/{endpoint}", json=body)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         if user_email and _is_access_denied(exc):
             return graph_error_response(

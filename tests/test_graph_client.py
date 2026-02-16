@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -56,7 +56,8 @@ async def test_patch_handles_empty_response_body(client):
 
 
 @pytest.mark.asyncio
-async def test_get_raises_normalized_graph_error(client):
+@patch("office_assistant.graph_client.clear_cache")
+async def test_get_raises_normalized_graph_error(mock_clear, client):
     resp = _mock_response(
         status_code=403,
         json_data={
@@ -234,3 +235,82 @@ async def test_raise_graph_error_top_level_message(client):
 
     assert exc_info.value.message == "Bad request parameter"
     assert exc_info.value.code is None
+
+
+class TestAuthRetry:
+    """Tests for automatic re-authentication on 401/403."""
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_401_triggers_reauth_and_retries(self, mock_clear, client):
+        """401 should clear cache, get new token, and retry the request."""
+        unauthorized = _mock_response(
+            status_code=401,
+            json_data={
+                "error": {"code": "InvalidAuthenticationToken", "message": "Token expired"},
+            },
+        )
+        success = _mock_response(json_data={"displayName": "Robert"})
+        client._http.request = AsyncMock(side_effect=[unauthorized, success])
+
+        result = await client.get("/me")
+
+        assert result == {"displayName": "Robert"}
+        mock_clear.assert_called_once()
+        assert client._auth_headers.call_count == 2  # initial + retry
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_403_triggers_reauth_and_retries(self, mock_clear, client):
+        """403 (personal account expired token) should also trigger re-auth."""
+        forbidden = _mock_response(
+            status_code=403,
+            json_data={"error": {"code": "ErrorAccessDenied", "message": "Access is denied."}},
+        )
+        success = _mock_response(json_data={"displayName": "Robert"})
+        client._http.request = AsyncMock(side_effect=[forbidden, success])
+
+        result = await client.get("/me")
+
+        assert result == {"displayName": "Robert"}
+        mock_clear.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_persistent_403_raises_after_one_retry(self, mock_clear, client):
+        """If re-auth doesn't fix the 403, it should raise normally."""
+        forbidden = _mock_response(
+            status_code=403,
+            json_data={
+                "error": {"code": "ErrorAccessDenied", "message": "Genuine permission error"},
+            },
+        )
+        client._http.request = AsyncMock(return_value=forbidden)
+
+        with pytest.raises(GraphApiError) as exc_info:
+            await client.get("/me")
+
+        assert exc_info.value.status_code == 403
+        mock_clear.assert_called_once()  # only tried once
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_auth_retry_only_on_first_attempt(self, mock_clear, client):
+        """Auth retry should only happen on the first attempt, not after transient retries."""
+        throttled = _mock_response(
+            status_code=429,
+            json_data={"error": {"code": "TooManyRequests", "message": "Slow down"}},
+            headers={"Retry-After": "0"},
+        )
+        unauthorized = _mock_response(
+            status_code=401,
+            json_data={"error": {"code": "InvalidAuthenticationToken", "message": "Expired"}},
+        )
+        # 429 on attempt 0 (retry), then 401 on attempt 1 (should NOT trigger re-auth)
+        client._http.request = AsyncMock(side_effect=[throttled, unauthorized])
+
+        with pytest.raises(GraphApiError) as exc_info:
+            await client.get("/me")
+
+        assert exc_info.value.status_code == 401
+        mock_clear.assert_not_called()

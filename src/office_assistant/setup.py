@@ -10,10 +10,9 @@ from pathlib import Path
 
 from office_assistant.auth import (
     CACHE_FILE,
-    _build_cache,
-    _is_personal_tenant,
-    _load_env,
-    _save_cache,
+    AuthenticationRequired,
+    complete_device_flow,
+    get_token,
 )
 
 
@@ -96,69 +95,21 @@ def _create_env_file() -> None:
 
 
 def _authenticate() -> None:
-    """Run the device code flow and cache the token."""
-    import msal
-
-    client_id, tenant_id = _load_env()
-    cache = _build_cache()
-
-    authority = f"https://login.microsoftonline.com/{tenant_id}"
-    if _is_personal_tenant(tenant_id):
-        scopes = ["Calendars.ReadWrite", "User.Read"]
-    else:
-        scopes = [
-            "Calendars.ReadWrite",
-            "Calendars.ReadWrite.Shared",
-            "Place.Read.All",
-            "User.Read",
-        ]
-
-    app = msal.PublicClientApplication(
-        client_id,
-        authority=authority,
-        token_cache=cache,
-    )
-
-    # Check if already authenticated.
-    accounts = app.get_accounts()
-    if accounts:
-        result = app.acquire_token_silent(scopes, account=accounts[0])
-        if result and "access_token" in result:
-            _save_cache(cache)
-            print()
-            print(f"Already authenticated (token cached at {CACHE_FILE}).")
-            return
-        # Token expired — clear old cache and re-authenticate.
+    """Ensure we have a valid token, prompting the user if needed."""
+    try:
+        get_token()
         print()
-        print("Your sign-in has expired. Let's get you signed in again.")
-
-    # Start device code flow.
-    flow = app.initiate_device_flow(scopes=scopes)
-    if "user_code" not in flow:
-        print(
-            f"Error: {flow.get('error_description', 'Could not start device code flow.')}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    print()
-    print(flow["message"])
-    print()
-    print("Waiting for you to sign in...")
-
-    result = app.acquire_token_by_device_flow(flow)
-    _save_cache(cache)
-
-    if "access_token" in result:
+        print(f"Already authenticated (token cached at {CACHE_FILE}).")
+    except AuthenticationRequired as auth_req:
+        print()
+        print("Your sign-in has expired." if CACHE_FILE.exists() else "")
+        print(auth_req.message)
+        print()
+        print("Waiting for you to sign in...")
+        complete_device_flow(auth_req.flow)
         print()
         print("Authenticated successfully!")
         print(f"Token cached at {CACHE_FILE}")
-    else:
-        print(
-            f"Error: {result.get('error_description', 'Authentication failed.')}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
 
 
 def main() -> None:

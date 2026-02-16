@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from mcp.server.fastmcp import Context
 
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError, GraphClient
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,21 @@ def validate_datetime_order(
     if start >= end:
         return f"{start_field} must be before {end_field}."
     return None
+
+
+def auth_required_response(exc: AuthenticationRequired) -> dict[str, Any]:
+    """Return a friendly sign-in message when the user's token has expired."""
+    return {
+        "error": (
+            f"Your sign-in has expired. To reconnect, open this link in your browser:\n\n"
+            f"  {exc.url}\n\n"
+            f"Then enter the code: **{exc.user_code}**\n\n"
+            f"Once you've signed in, just repeat your last request."
+        ),
+        "errorType": "auth_required",
+        "url": exc.url,
+        "userCode": exc.user_code,
+    }
 
 
 def graph_error_response(

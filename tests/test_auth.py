@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from office_assistant.auth import (
+    AuthenticationRequired,
     _build_cache,
     _load_env,
     _save_cache,
@@ -115,51 +116,48 @@ class TestGetToken:
             finally:
                 patch_auth.start()
 
-    def test_device_code_flow(self, patch_auth):
-        """When no cached token, falls back to device code flow."""
+    def test_device_code_flow_raises_auth_required(self, patch_auth):
+        """When no cached token, raises AuthenticationRequired with sign-in details."""
         mock_app = MagicMock()
         mock_app.get_accounts.return_value = []
         mock_app.initiate_device_flow.return_value = {
             "user_code": "ABC123",
+            "verification_uri": "https://microsoft.com/devicelogin",
             "message": "Go to https://microsoft.com/devicelogin and enter ABC123",
         }
-        mock_app.acquire_token_by_device_flow.return_value = {"access_token": "new-token"}
 
         with (
             patch("office_assistant.auth._load_env", return_value=("client-id", "tenant-id")),
             patch("office_assistant.auth._build_cache"),
-            patch("office_assistant.auth._save_cache"),
             patch("msal.PublicClientApplication", return_value=mock_app),
         ):
             patch_auth.stop()
             try:
-                token = get_token()
-                assert token == "new-token"
+                with pytest.raises(AuthenticationRequired) as exc_info:
+                    get_token()
+                assert exc_info.value.user_code == "ABC123"
+                assert exc_info.value.url == "https://microsoft.com/devicelogin"
+                assert exc_info.value.flow is not None
                 mock_app.initiate_device_flow.assert_called_once()
             finally:
                 patch_auth.start()
 
-    def test_device_code_flow_failure(self, patch_auth):
-        """Device code flow raises on authentication failure."""
+    def test_device_code_flow_initiation_failure(self, patch_auth):
+        """Raises RuntimeError when device code flow can't be started."""
         mock_app = MagicMock()
         mock_app.get_accounts.return_value = []
         mock_app.initiate_device_flow.return_value = {
-            "user_code": "ABC123",
-            "message": "Go to URL",
-        }
-        mock_app.acquire_token_by_device_flow.return_value = {
-            "error_description": "User cancelled"
+            "error_description": "Application is not configured"
         }
 
         with (
             patch("office_assistant.auth._load_env", return_value=("client-id", "tenant-id")),
             patch("office_assistant.auth._build_cache"),
-            patch("office_assistant.auth._save_cache"),
             patch("msal.PublicClientApplication", return_value=mock_app),
         ):
             patch_auth.stop()
             try:
-                with pytest.raises(RuntimeError, match="User cancelled"):
+                with pytest.raises(RuntimeError, match="Application is not configured"):
                     get_token()
             finally:
                 patch_auth.start()

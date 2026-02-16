@@ -7,8 +7,13 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError
-from office_assistant.tools._helpers import get_graph, graph_error_response
+from office_assistant.tools._helpers import (
+    auth_required_response,
+    get_graph,
+    graph_error_response,
+)
 
 
 @mcp.tool()
@@ -25,6 +30,8 @@ async def get_my_profile(ctx: Context) -> dict[str, Any]:
             "/me",
             params={"$select": "displayName,mail,userPrincipalName"},
         )
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return graph_error_response(exc)
 
@@ -55,6 +62,8 @@ async def list_calendars(ctx: Context) -> dict[str, Any]:
     graph = get_graph(ctx)
     try:
         data = await graph.get_all("/me/calendars", params={"$top": "50"})
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return graph_error_response(exc)
     calendars = [

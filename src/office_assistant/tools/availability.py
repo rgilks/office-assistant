@@ -7,8 +7,10 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError
 from office_assistant.tools._helpers import (
+    auth_required_response,
     get_graph,
     graph_error_response,
     validate_datetime_order,
@@ -82,6 +84,8 @@ async def get_free_busy(
 
     try:
         data = await graph.post("/me/calendar/getSchedule", json=body)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return graph_error_response(exc)
 
@@ -195,6 +199,8 @@ async def find_meeting_times(
 
     try:
         data = await graph.post("/me/findMeetingTimes", json=body)
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         return graph_error_response(exc)
 

@@ -20,8 +20,11 @@ _MAX_RETRIES = 3
 _RETRY_STATUS_CODES = {429, 503, 504}
 _BASE_BACKOFF_SECONDS = 1.0
 
-# 401 means the token is invalid/expired — clear the cache and get a fresh one.
-_AUTH_FAILURE_STATUS = 401
+# Auth failures — clear the cache and get a fresh token.
+# 401 = Unauthorized (standard expired token).
+# 403 = AccessDenied (personal Microsoft accounts return this for expired tokens
+#        instead of 401, with error code "ErrorAccessDenied").
+_AUTH_FAILURE_STATUSES = {401, 403}
 
 
 @dataclass(slots=True)
@@ -111,8 +114,8 @@ class GraphClient:
     ) -> httpx.Response:
         """Execute an HTTP request with retry on transient failures.
 
-        Also handles 401 (Unauthorized) by clearing the token cache and
-        re-authenticating once before giving up.
+        Also handles auth failures (401/403) by clearing the token cache
+        and re-authenticating once before giving up.
         """
         headers = await self._auth_headers()
         resp: httpx.Response | None = None
@@ -121,8 +124,13 @@ class GraphClient:
             resp = await self._http.request(method, path, headers=headers, **kwargs)
 
             # Token expired/revoked — clear cache and get a fresh token once.
-            if resp.status_code == _AUTH_FAILURE_STATUS and attempt == 0:
-                logger.warning("Got 401, clearing token cache and re-authenticating")
+            # Personal Microsoft accounts return 403 ErrorAccessDenied
+            # instead of 401 when the token is expired.
+            if resp.status_code in _AUTH_FAILURE_STATUSES and attempt == 0:
+                logger.warning(
+                    "Got %d, clearing token cache and re-authenticating",
+                    resp.status_code,
+                )
                 clear_cache()
                 headers = await self._auth_headers()
                 continue

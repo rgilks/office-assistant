@@ -7,8 +7,13 @@ from typing import Any
 from mcp.server.fastmcp import Context
 
 from office_assistant.app import mcp
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError
-from office_assistant.tools._helpers import get_graph, graph_error_response
+from office_assistant.tools._helpers import (
+    auth_required_response,
+    get_graph,
+    graph_error_response,
+)
 
 
 @mcp.tool()
@@ -30,6 +35,8 @@ async def list_rooms(
 
     try:
         data = await graph.get_all("/places/microsoft.graph.room", params={"$top": "100"})
+    except AuthenticationRequired as exc:
+        return auth_required_response(exc)
     except GraphApiError as exc:
         if exc.status_code in {400, 403, 404}:
             return graph_error_response(
