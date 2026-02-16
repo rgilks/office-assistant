@@ -10,12 +10,16 @@ Azure AD tenant ID for organisational accounts.
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import sys
 from pathlib import Path
 
 import msal
 from dotenv import dotenv_values
+
+logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path.home() / ".office-assistant"
 CACHE_FILE = CACHE_DIR / "token_cache.json"
@@ -72,8 +76,8 @@ def _build_cache() -> msal.SerializableTokenCache:
     if CACHE_FILE.exists():
         try:
             cache.deserialize(CACHE_FILE.read_text())
-        except Exception:
-            # Treat unreadable/corrupt cache as empty so auth can recover.
+        except (json.JSONDecodeError, ValueError, KeyError):
+            logger.warning("Token cache at %s is corrupt, starting fresh", CACHE_FILE)
             return msal.SerializableTokenCache()
     return cache
 
@@ -123,15 +127,17 @@ def get_token() -> str:
     if accounts:
         result = app.acquire_token_silent(scopes, account=accounts[0])
         if result and "access_token" in result:
+            logger.debug("Token acquired silently for %s", accounts[0].get("username"))
             _save_cache(cache)
             return result["access_token"]
 
     # Fall back to device-code flow.
+    logger.info("No cached token, starting device-code flow")
     flow = app.initiate_device_flow(scopes=scopes)
     if "user_code" not in flow:
-        raise RuntimeError(
-            f"Could not start device-code flow: {flow.get('error_description', 'Unknown error')}"
-        )
+        error_desc = flow.get("error_description", "Unknown error")
+        logger.error("Device-code flow failed: %s", error_desc)
+        raise RuntimeError(f"Could not start device-code flow: {error_desc}")
 
     # Print to stderr because stdout is the MCP stdio transport.
     print(flow["message"], file=sys.stderr, flush=True)
@@ -140,11 +146,12 @@ def get_token() -> str:
     _save_cache(cache)
 
     if "access_token" in result:
+        logger.info("Authenticated via device-code flow")
         return result["access_token"]
 
-    raise RuntimeError(
-        f"Authentication failed: {result.get('error_description', 'Unknown error')}"
-    )
+    error_desc = result.get("error_description", "Unknown error")
+    logger.error("Authentication failed: %s", error_desc)
+    raise RuntimeError(f"Authentication failed: {error_desc}")
 
 
 def clear_cache() -> bool:

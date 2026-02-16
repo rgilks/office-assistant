@@ -209,7 +209,7 @@ async def list_events(
     }
 
     try:
-        data = await graph.get(f"{base}/calendarview", params=params)
+        data = await graph.get_all(f"{base}/calendarview", params=params)
     except GraphApiError as exc:
         if user_email and _is_access_denied(exc):
             return graph_error_response(

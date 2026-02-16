@@ -14,6 +14,7 @@ def mock_graph():
     """A GraphClient with all HTTP methods mocked."""
     client = GraphClient()
     client.get = AsyncMock()
+    client.get_all = AsyncMock()
     client.post = AsyncMock()
     client.patch = AsyncMock()
     client.delete = AsyncMock()

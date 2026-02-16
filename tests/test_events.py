@@ -39,7 +39,7 @@ SAMPLE_EVENT = {
 class TestListEvents:
     @pytest.mark.asyncio
     async def test_list_own_events(self, mock_ctx, mock_graph):
-        mock_graph.get.return_value = {"value": [SAMPLE_EVENT]}
+        mock_graph.get_all.return_value = {"value": [SAMPLE_EVENT]}
 
         result = await list_events(
             start_datetime="2026-02-16T00:00:00",
@@ -51,12 +51,12 @@ class TestListEvents:
         assert result["events"][0]["subject"] == "Team Standup"
         assert result["events"][0]["location"] == "Room 42"
         # Should use /me/calendarview
-        call_args = mock_graph.get.call_args
+        call_args = mock_graph.get_all.call_args
         assert "/me/calendarview" in call_args[0][0]
 
     @pytest.mark.asyncio
     async def test_list_other_user_events(self, mock_ctx, mock_graph):
-        mock_graph.get.return_value = {"value": []}
+        mock_graph.get_all.return_value = {"value": []}
 
         await list_events(
             start_datetime="2026-02-16T00:00:00",
@@ -65,7 +65,7 @@ class TestListEvents:
             user_email="bob@company.com",
         )
 
-        call_args = mock_graph.get.call_args
+        call_args = mock_graph.get_all.call_args
         assert "/users/bob%40company.com/calendarview" in call_args[0][0]
 
     @pytest.mark.asyncio
@@ -79,11 +79,11 @@ class TestListEvents:
 
         assert "error" in result
         assert "Invalid email" in result["error"]
-        mock_graph.get.assert_not_called()
+        mock_graph.get_all.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_access_denied(self, mock_ctx, mock_graph):
-        mock_graph.get.side_effect = GraphApiError(
+        mock_graph.get_all.side_effect = GraphApiError(
             status_code=403,
             code="ErrorAccessDenied",
             message="Forbidden",
@@ -110,7 +110,7 @@ class TestListEvents:
 
         assert "error" in result
         assert "must be before" in result["error"]
-        mock_graph.get.assert_not_called()
+        mock_graph.get_all.assert_not_called()
 
 
 class TestCreateEvent:
@@ -340,7 +340,7 @@ class TestRecurrence:
                 "range": {"type": "noEnd", "startDate": "2026-02-16"},
             },
         }
-        mock_graph.get.return_value = {"value": [recurring_event]}
+        mock_graph.get_all.return_value = {"value": [recurring_event]}
 
         result = await list_events(
             start_datetime="2026-02-16T00:00:00",
@@ -437,6 +437,55 @@ class TestDelegateAccess:
         get_args = mock_graph.get.call_args
         assert "/users/boss%40company.com/events/event-1" in get_args[0][0]
 
+    @pytest.mark.asyncio
+    async def test_update_delegate_access_denied(self, mock_ctx, mock_graph):
+        mock_graph.patch.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Forbidden",
+        )
+
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            subject="New title",
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        assert "delegate access" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_cancel_delegate_without_comment(self, mock_ctx, mock_graph):
+        """Cancel via DELETE on a delegate calendar."""
+        result = await cancel_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            user_email="boss@company.com",
+        )
+
+        assert result["status"] == "cancelled"
+        mock_graph.delete.assert_called_once()
+        call_args = mock_graph.delete.call_args
+        assert "/users/boss%40company.com/events/event-1" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_cancel_delegate_access_denied(self, mock_ctx, mock_graph):
+        mock_graph.delete.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Forbidden",
+        )
+
+        result = await cancel_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        assert "delegate access" in result["error"]
+
 
 class TestRespondToEvent:
     @pytest.mark.asyncio
@@ -522,6 +571,25 @@ class TestRespondToEvent:
 
         body = mock_graph.post.call_args[1]["json"]
         assert body["sendResponse"] is False
+
+    @pytest.mark.asyncio
+    async def test_respond_delegate_access_denied(self, mock_ctx, mock_graph):
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Forbidden",
+        )
+
+        result = await respond_to_event(
+            event_id="event-1",
+            response="accept",
+            ctx=mock_ctx,
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        assert "permission" in result["error"].lower()
+        assert result["errorType"] == "permission_denied"
 
 
 class TestUpdateEvent:

@@ -29,7 +29,7 @@ async def list_rooms(
     graph = get_graph(ctx)
 
     try:
-        data = await graph.get("/places/microsoft.graph.room", params={"$top": "100"})
+        data = await graph.get_all("/places/microsoft.graph.room", params={"$top": "100"})
     except GraphApiError as exc:
         if exc.status_code in {400, 403, 404}:
             return graph_error_response(

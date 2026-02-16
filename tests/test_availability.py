@@ -334,3 +334,20 @@ class TestFindMeetingTimes:
         assert "error" in result
         assert "must be before" in result["error"]
         mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_graph_error_is_normalized(self, mock_ctx, mock_graph):
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Access denied",
+        )
+
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+        )
+
+        assert result["errorType"] == "permission_denied"
+        assert result["statusCode"] == 403

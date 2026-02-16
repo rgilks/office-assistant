@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from typing import Any
@@ -10,6 +11,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from mcp.server.fastmcp import Context
 
 from office_assistant.graph_client import GraphApiError, GraphClient
+
+logger = logging.getLogger(__name__)
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -100,6 +103,13 @@ def graph_error_response(
     fallback_message: str | None = None,
 ) -> dict[str, Any]:
     """Map a Graph API error to a consistent tool response shape."""
+    logger.warning(
+        "Graph API error %d [%s]: %s (request_id=%s)",
+        exc.status_code,
+        exc.code,
+        exc.message,
+        exc.request_id,
+    )
     code = (exc.code or "").lower()
     if exc.status_code == 401 or code in {"invalidauthenticationtoken", "unauthorized"}:
         error_type = "auth_error"

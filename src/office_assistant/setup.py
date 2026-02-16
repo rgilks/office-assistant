@@ -90,6 +90,7 @@ def _create_env_file() -> None:
         f"CLIENT_ID={client_id}\n"
         f"TENANT_ID={tenant_id}\n"
     )
+    path.chmod(0o600)
     print()
     print(f"Saved credentials to {path}")
 

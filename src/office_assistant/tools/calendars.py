@@ -54,7 +54,7 @@ async def list_calendars(ctx: Context) -> dict[str, Any]:
     """
     graph = get_graph(ctx)
     try:
-        data = await graph.get("/me/calendars", params={"$top": "50"})
+        data = await graph.get_all("/me/calendars", params={"$top": "50"})
     except GraphApiError as exc:
         return graph_error_response(exc)
     calendars = [

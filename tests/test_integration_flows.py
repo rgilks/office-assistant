@@ -366,3 +366,78 @@ async def test_list_rooms_flow(integration_ctx):
 
     assert result["count"] == 1
     assert result["rooms"][0]["email"] == "boardroom@company.com"
+
+
+@pytest.mark.asyncio
+async def test_delegate_update_event_flow(integration_ctx):
+    with respx.mock(base_url="https://graph.microsoft.com") as router:
+        update_route = router.patch("/v1.0/users/boss%40company.com/events/event-1").mock(
+            return_value=Response(
+                200,
+                json={
+                    "id": "event-1",
+                    "subject": "Updated by EA",
+                    "start": {"dateTime": "2026-03-03T14:00:00", "timeZone": "UTC"},
+                    "end": {"dateTime": "2026-03-03T15:00:00", "timeZone": "UTC"},
+                    "attendees": [],
+                },
+            )
+        )
+
+        result = await update_event(
+            event_id="event-1",
+            ctx=integration_ctx,
+            subject="Updated by EA",
+            user_email="boss@company.com",
+        )
+
+    assert update_route.called
+    assert result["subject"] == "Updated by EA"
+
+
+@pytest.mark.asyncio
+async def test_delegate_cancel_event_flow(integration_ctx):
+    with respx.mock(base_url="https://graph.microsoft.com") as router:
+        cancel_route = router.delete("/v1.0/users/boss%40company.com/events/event-1").mock(
+            return_value=Response(204)
+        )
+
+        result = await cancel_event(
+            event_id="event-1",
+            ctx=integration_ctx,
+            user_email="boss@company.com",
+        )
+
+    assert cancel_route.called
+    assert result["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_delegate_access_denied_flow(integration_ctx):
+    """Integration test: 403 on delegate calendar returns a clear message."""
+    with respx.mock(base_url="https://graph.microsoft.com") as router:
+        router.post("/v1.0/users/boss%40company.com/calendar/events").mock(
+            return_value=Response(
+                403,
+                json={
+                    "error": {
+                        "code": "ErrorAccessDenied",
+                        "message": "Access is denied.",
+                    }
+                },
+                headers={"request-id": "req-99"},
+            )
+        )
+
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-03-03T14:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-03-03T15:00:00",
+            end_timezone="UTC",
+            ctx=integration_ctx,
+            user_email="boss@company.com",
+        )
+
+    assert result["errorType"] == "permission_denied"
+    assert "delegate access" in result["error"]

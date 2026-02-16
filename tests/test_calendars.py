@@ -77,7 +77,7 @@ class TestGetMyProfile:
 class TestListCalendars:
     @pytest.mark.asyncio
     async def test_returns_calendars(self, mock_ctx, mock_graph):
-        mock_graph.get.return_value = {
+        mock_graph.get_all.return_value = {
             "value": [
                 {
                     "id": "cal-1",
@@ -105,7 +105,7 @@ class TestListCalendars:
 
     @pytest.mark.asyncio
     async def test_empty_calendars(self, mock_ctx, mock_graph):
-        mock_graph.get.return_value = {"value": []}
+        mock_graph.get_all.return_value = {"value": []}
 
         result = await list_calendars(mock_ctx)
         assert result["count"] == 0
@@ -113,7 +113,7 @@ class TestListCalendars:
 
     @pytest.mark.asyncio
     async def test_list_calendars_graph_error_is_normalized(self, mock_ctx, mock_graph):
-        mock_graph.get.side_effect = GraphApiError(
+        mock_graph.get_all.side_effect = GraphApiError(
             status_code=403,
             code="ErrorAccessDenied",
             message="Forbidden",
