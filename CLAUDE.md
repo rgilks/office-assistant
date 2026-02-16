@@ -2,6 +2,20 @@
 
 Office 365 calendar assistant powered by Claude Code and Microsoft Graph API.
 
+## Using the MCP tools
+
+The office-assistant MCP server is registered with Claude Code and provides
+calendar tools. **Always call these tools directly** using the
+`mcp__office-assistant__<tool_name>` functions in your tool list. Never use
+Bash, Python scripts, or subprocess workarounds to invoke them.
+
+Available tools: `get_my_profile`, `list_events`, `create_event`,
+`update_event`, `cancel_event`, `respond_to_event`, `list_calendars`,
+`get_free_busy`, `find_meeting_times`, `list_rooms`.
+
+Everything you need — tools, skills, source code, tests — is inside this
+project. You do not need to search outside the repo.
+
 ## Architecture
 
 - **MCP server** (`src/office_assistant/server.py`): FastMCP over stdio, provides calendar tools
