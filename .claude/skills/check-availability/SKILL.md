@@ -24,3 +24,8 @@ Check people's availability using their Office 365 free/busy schedule.
      Bob is in meetings until 3pm."
 6. If the user wants to book a slot based on the results, offer to create the
    meeting using `create_event`.
+
+**Note:** This tool requires a work/school Microsoft 365 account. Personal
+Microsoft accounts (outlook.com, hotmail.com, live.com) cannot check other
+people's availability. If the user is on a personal account (timezone is
+`null` from `get_my_profile`), explain this limitation.

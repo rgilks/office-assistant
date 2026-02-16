@@ -351,3 +351,84 @@ class TestFindMeetingTimes:
 
         assert result["errorType"] == "permission_denied"
         assert result["statusCode"] == 403
+
+    @pytest.mark.asyncio
+    async def test_find_meeting_times_personal_account_error(self, mock_ctx, mock_graph):
+        """403 from find_meeting_times gives a clear personal account message."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Access is denied.",
+        )
+
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "work/school" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_find_meeting_times_non_permission_error_not_overridden(
+        self, mock_ctx, mock_graph
+    ):
+        """Non-permission errors should not get the personal account message."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=500,
+            code="InternalServerError",
+            message="Something broke",
+        )
+
+        result = await find_meeting_times(
+            attendees=["alice@company.com"],
+            duration_minutes=30,
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "work/school" not in result["error"]
+
+
+class TestFreeBusyPersonalAccount:
+    """Tests for personal account error messages on get_free_busy."""
+
+    @pytest.mark.asyncio
+    async def test_403_gives_personal_account_message(self, mock_ctx, mock_graph):
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Access is denied.",
+        )
+
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "work/school" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_500_not_overridden(self, mock_ctx, mock_graph):
+        """Non-permission errors should not get the personal account message."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=500,
+            code="InternalServerError",
+            message="Something broke",
+        )
+
+        result = await get_free_busy(
+            emails=["alice@company.com"],
+            start_datetime="2026-02-16T09:00:00",
+            end_datetime="2026-02-16T17:00:00",
+            start_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "work/school" not in result["error"]

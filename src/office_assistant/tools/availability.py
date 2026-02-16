@@ -87,6 +87,14 @@ async def get_free_busy(
     except AuthenticationRequired as exc:
         return auth_required_response(exc)
     except GraphApiError as exc:
+        if exc.status_code in {400, 401, 403}:
+            return graph_error_response(
+                exc,
+                fallback_message=(
+                    "Free/busy lookup requires a work/school Microsoft 365 account. "
+                    "Personal Microsoft accounts cannot check other people's availability."
+                ),
+            )
         return graph_error_response(exc)
 
     results = []
@@ -202,6 +210,14 @@ async def find_meeting_times(
     except AuthenticationRequired as exc:
         return auth_required_response(exc)
     except GraphApiError as exc:
+        if exc.status_code in {400, 401, 403}:
+            return graph_error_response(
+                exc,
+                fallback_message=(
+                    "Finding meeting times requires a work/school Microsoft 365 account. "
+                    "Personal Microsoft accounts cannot check other people's availability."
+                ),
+            )
         return graph_error_response(exc)
 
     suggestions = []

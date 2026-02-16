@@ -93,7 +93,10 @@ def _format_event(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def _is_access_denied(exc: GraphApiError) -> bool:
-    return exc.status_code == 403 or (exc.code or "").lower() == "erroraccessdenied"
+    if exc.status_code != 403:
+        return False
+    code = (exc.code or "").lower()
+    return code in {"erroraccessdenied", "accessdenied"}
 
 
 def _user_base(user_email: str | None) -> str:
@@ -241,7 +244,7 @@ async def create_event(
     room_emails: list[str] | None = None,
     body: str | None = None,
     location: str | None = None,
-    is_online_meeting: bool = True,
+    is_online_meeting: bool = False,
     user_email: str | None = None,
     recurrence_pattern: str | None = None,
     recurrence_interval: int | None = None,
@@ -267,7 +270,7 @@ async def create_event(
         body: HTML or plain-text body for the meeting invitation.
         location: Physical location name.
         is_online_meeting: Whether to create a Teams meeting link
-            (default: True).
+            (default: False). Only works with work/school accounts.
         user_email: Create the event on another user's calendar
             (requires delegate access, work/school accounts only).
         recurrence_pattern: Recurrence type: "daily", "weekly",
@@ -574,6 +577,14 @@ async def respond_to_event(
     except AuthenticationRequired as exc:
         return auth_required_response(exc)
     except GraphApiError as exc:
+        if exc.status_code == 400 and "organizer" in (exc.message or "").lower():
+            return graph_error_response(
+                exc,
+                fallback_message=(
+                    "You can't respond to this event because you are the organiser. "
+                    "As the meeting organiser you are already confirmed."
+                ),
+            )
         if user_email and _is_access_denied(exc):
             return graph_error_response(
                 exc,

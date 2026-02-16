@@ -130,8 +130,10 @@ class TestCreateEvent:
         assert result["subject"] == "Team Standup"
         call_args = mock_graph.post.call_args
         body = call_args[1]["json"]
-        assert body["isOnlineMeeting"] is True
-        assert body["onlineMeetingProvider"] == "teamsForBusiness"
+        # Default is False (safe for personal accounts); work accounts
+        # should explicitly pass is_online_meeting=True.
+        assert body["isOnlineMeeting"] is False
+        assert "onlineMeetingProvider" not in body
 
     @pytest.mark.asyncio
     async def test_create_with_attendees(self, mock_ctx, mock_graph):
@@ -1075,3 +1077,66 @@ class TestRespondValidation:
 
         assert "error" in result
         assert result["statusCode"] == 500
+
+    @pytest.mark.asyncio
+    async def test_respond_organiser_gets_clear_error(self, mock_ctx, mock_graph):
+        """Responding to own event returns a clear organiser message."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=400,
+            code="ErrorInvalidRequest",
+            message="You can't respond to this meeting because you're the meeting organizer.",
+        )
+
+        result = await respond_to_event(
+            event_id="event-1",
+            response="tentatively_accept",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "organiser" in result["error"].lower()
+
+
+class TestIsAccessDenied:
+    """Tests for the narrowed _is_access_denied helper."""
+
+    @pytest.mark.asyncio
+    async def test_403_access_denied_on_delegate(self, mock_ctx, mock_graph):
+        """403 + ErrorAccessDenied with user_email is a delegate permission error."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Access is denied.",
+        )
+
+        result = await respond_to_event(
+            event_id="event-1",
+            response="accept",
+            ctx=mock_ctx,
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        assert "permission" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_403_non_access_denied_code_not_treated_as_delegate_error(
+        self, mock_ctx, mock_graph
+    ):
+        """403 with a non-access-denied code should not match _is_access_denied."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="InvalidAuthenticationToken",
+            message="Token expired",
+        )
+
+        result = await respond_to_event(
+            event_id="event-1",
+            response="accept",
+            ctx=mock_ctx,
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        # Should be a generic error, not the delegate-specific message
+        assert "permission to respond" not in result.get("error", "")

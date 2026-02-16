@@ -201,9 +201,9 @@ def complete_device_flow(flow: dict[str, Any]) -> str:
     app = msal.PublicClientApplication(client_id, authority=authority, token_cache=cache)
 
     result = app.acquire_token_by_device_flow(flow)
-    _save_cache(cache)
 
     if "access_token" in result:
+        _save_cache(cache)
         logger.info("Authenticated via device-code flow")
         return str(result["access_token"])
 

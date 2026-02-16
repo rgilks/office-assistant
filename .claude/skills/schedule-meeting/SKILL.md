@@ -20,7 +20,10 @@ Create a meeting on the user's Office 365 calendar.
    - For **room bookings** (work/school only), use `list_rooms` to find rooms
      or ask which room to book.
 4. Default to a 30-minute meeting if no duration or end time is given.
-5. Default to a Teams meeting (`is_online_meeting=true`) unless told otherwise.
+5. For **work/school accounts**, default to a Teams meeting
+   (`is_online_meeting=true`) unless told otherwise.
+   For **personal accounts** (timezone is `null` from `get_my_profile`),
+   always set `is_online_meeting=false` — Teams meetings are not supported.
 6. If the user is scheduling **on behalf of someone else** (e.g. "Schedule a
    meeting for Sarah"), use the `user_email` parameter with that person's email.
    This requires delegate access (work/school accounts only).

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from office_assistant.auth import AuthenticationRequired
 from office_assistant.graph_client import GraphApiError, GraphClient
 
 
@@ -56,8 +57,7 @@ async def test_patch_handles_empty_response_body(client):
 
 
 @pytest.mark.asyncio
-@patch("office_assistant.graph_client.clear_cache")
-async def test_get_raises_normalized_graph_error(mock_clear, client):
+async def test_get_raises_normalized_graph_error(client):
     resp = _mock_response(
         status_code=403,
         json_data={
@@ -78,6 +78,8 @@ async def test_get_raises_normalized_graph_error(mock_clear, client):
     assert exc.code == "ErrorAccessDenied"
     assert exc.request_id == "req-123"
     assert "Access is denied" in exc.message
+    # ErrorAccessDenied is a genuine permission error, NOT re-auth — only 1 request
+    assert client._http.request.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -261,11 +263,16 @@ class TestAuthRetry:
 
     @pytest.mark.asyncio
     @patch("office_assistant.graph_client.clear_cache")
-    async def test_403_triggers_reauth_and_retries(self, mock_clear, client):
-        """403 (personal account expired token) should also trigger re-auth."""
+    async def test_403_with_invalid_token_triggers_reauth(self, mock_clear, client):
+        """403 + InvalidAuthenticationToken (personal expired token) triggers re-auth."""
         forbidden = _mock_response(
             status_code=403,
-            json_data={"error": {"code": "ErrorAccessDenied", "message": "Access is denied."}},
+            json_data={
+                "error": {
+                    "code": "InvalidAuthenticationToken",
+                    "message": "Access token has expired or is not yet valid.",
+                }
+            },
         )
         success = _mock_response(json_data={"displayName": "Robert"})
         client._http.request = AsyncMock(side_effect=[forbidden, success])
@@ -277,8 +284,8 @@ class TestAuthRetry:
 
     @pytest.mark.asyncio
     @patch("office_assistant.graph_client.clear_cache")
-    async def test_persistent_403_raises_after_one_retry(self, mock_clear, client):
-        """If re-auth doesn't fix the 403, it should raise normally."""
+    async def test_403_with_access_denied_does_not_trigger_reauth(self, mock_clear, client):
+        """403 + ErrorAccessDenied (genuine permission error) should NOT trigger re-auth."""
         forbidden = _mock_response(
             status_code=403,
             json_data={
@@ -291,7 +298,56 @@ class TestAuthRetry:
             await client.get("/me")
 
         assert exc_info.value.status_code == 403
+        mock_clear.assert_not_called()  # no re-auth attempted
+        assert client._http.request.call_count == 1  # no retry
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_persistent_401_raises_after_one_retry(self, mock_clear, client):
+        """If re-auth doesn't fix the 401, it should raise normally."""
+        unauthorized = _mock_response(
+            status_code=401,
+            json_data={
+                "error": {"code": "InvalidAuthenticationToken", "message": "Token expired"},
+            },
+        )
+        client._http.request = AsyncMock(return_value=unauthorized)
+
+        with pytest.raises(GraphApiError) as exc_info:
+            await client.get("/me")
+
+        assert exc_info.value.status_code == 401
         mock_clear.assert_called_once()  # only tried once
+
+    @pytest.mark.asyncio
+    @patch("office_assistant.graph_client.clear_cache")
+    async def test_auth_retry_catches_authentication_required(self, mock_clear, client):
+        """If re-auth raises AuthenticationRequired, return the original error."""
+        unauthorized = _mock_response(
+            status_code=401,
+            json_data={
+                "error": {"code": "InvalidAuthenticationToken", "message": "Token expired"},
+            },
+        )
+        client._http.request = AsyncMock(return_value=unauthorized)
+        # First call succeeds (initial auth), second raises (re-auth after cache clear)
+        client._auth_headers = AsyncMock(
+            side_effect=[
+                {"Authorization": "Bearer token"},
+                AuthenticationRequired(
+                    url="https://microsoft.com/devicelogin",
+                    user_code="ABC123",
+                    message="Sign in",
+                    flow={},
+                ),
+            ]
+        )
+
+        with pytest.raises(GraphApiError) as exc_info:
+            await client.get("/me")
+
+        assert exc_info.value.status_code == 401
+        mock_clear.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("office_assistant.graph_client.clear_cache")

@@ -28,3 +28,8 @@ Find available meeting times for a group of people using Office 365.
    - Shortening the meeting duration
    - Making some attendees optional
 7. If the user picks a slot, offer to create the meeting using `create_event`.
+
+**Note:** This tool requires a work/school Microsoft 365 account. Personal
+Microsoft accounts (outlook.com, hotmail.com, live.com) cannot use the
+`find_meeting_times` API. If the user is on a personal account (timezone is
+`null` from `get_my_profile`), explain this limitation.

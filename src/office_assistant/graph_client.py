@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from office_assistant.auth import clear_cache, get_token
+from office_assistant.auth import AuthenticationRequired, clear_cache, get_token
 
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 
@@ -20,11 +20,12 @@ _MAX_RETRIES = 3
 _RETRY_STATUS_CODES = {429, 503, 504}
 _BASE_BACKOFF_SECONDS = 1.0
 
-# Auth failures — clear the cache and get a fresh token.
-# 401 = Unauthorized (standard expired token).
-# 403 = AccessDenied (personal Microsoft accounts return this for expired tokens
-#        instead of 401, with error code "ErrorAccessDenied").
-_AUTH_FAILURE_STATUSES = {401, 403}
+# Error codes that indicate an expired/invalid token (as opposed to a genuine
+# permission error).  A 401 is always an auth failure.  A 403 with one of the
+# codes below is how personal Microsoft accounts signal an expired token —
+# other 403 codes (e.g. from org-only endpoints) are real permission errors
+# and should NOT trigger a cache clear + re-auth.
+_AUTH_FAILURE_CODES = {"invalidauthenticationtoken", "unauthorized"}
 
 
 @dataclass(slots=True)
@@ -102,6 +103,29 @@ class GraphClient:
             retry_after_seconds=retry_after_seconds,
         )
 
+    @staticmethod
+    def _is_auth_failure(resp: httpx.Response) -> bool:
+        """Return True if the response indicates an expired/invalid token.
+
+        A 401 is always an auth failure.  A 403 is only an auth failure
+        when the error code is one that Microsoft uses for invalid tokens
+        (e.g. ``InvalidAuthenticationToken``).  Other 403s — such as
+        ``ErrorAccessDenied`` from org-only endpoints on personal accounts
+        — are genuine permission errors and should not trigger re-auth.
+        """
+        if resp.status_code == 401:
+            return True
+        if resp.status_code != 403:
+            return False
+        # Parse the error code from the response body.
+        try:
+            payload = resp.json()
+        except ValueError:
+            return False
+        error = payload.get("error", {}) if isinstance(payload, dict) else {}
+        code = (error.get("code", "") if isinstance(error, dict) else "").lower()
+        return code in _AUTH_FAILURE_CODES
+
     def _ensure_success(self, resp: httpx.Response) -> None:
         if resp.is_error:
             self._raise_graph_error(resp)
@@ -124,15 +148,26 @@ class GraphClient:
             resp = await self._http.request(method, path, headers=headers, **kwargs)
 
             # Token expired/revoked — clear cache and get a fresh token once.
-            # Personal Microsoft accounts return 403 ErrorAccessDenied
-            # instead of 401 when the token is expired.
-            if resp.status_code in _AUTH_FAILURE_STATUSES and attempt == 0:
+            # 401 is always an auth failure.  403 is only an auth failure if
+            # the error code indicates an invalid token (personal Microsoft
+            # accounts return 403 + InvalidAuthenticationToken for expired
+            # tokens).  Other 403s are genuine permission errors.
+            if attempt == 0 and self._is_auth_failure(resp):
                 logger.warning(
                     "Got %d, clearing token cache and re-authenticating",
                     resp.status_code,
                 )
                 clear_cache()
-                headers = await self._auth_headers()
+                try:
+                    headers = await self._auth_headers()
+                except AuthenticationRequired:
+                    # Token cache was cleared but silent refresh failed —
+                    # the user needs to sign in again.  Return the original
+                    # response so the caller gets a proper GraphApiError.
+                    logger.warning(
+                        "Re-authentication requires user sign-in, returning original error",
+                    )
+                    return resp
                 continue
 
             if resp.status_code not in _RETRY_STATUS_CODES:
