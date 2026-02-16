@@ -72,6 +72,7 @@ Now configure two more settings:
     - Search for and tick these permissions:
       - `Calendars.ReadWrite`
       - `Calendars.ReadWrite.Shared` (work/school accounts only -- skip this for personal accounts)
+      - `Place.Read.All` (work/school accounts only -- enables meeting room discovery)
       - `User.Read`
     - Click **Add permissions**
 
@@ -158,6 +159,40 @@ Find a time for a 30-minute meeting with alice@company.com next week
 When can bob@company.com, carol@company.com and I all meet for an hour?
 ```
 
+### Recurring meetings
+
+```
+Set up a daily standup at 9am starting Monday
+Schedule a weekly team sync every Tuesday and Thursday at 2pm for the next 3 months
+Create a monthly budget review on the first Monday of each month
+```
+
+### Accept or decline meetings
+
+```
+Accept the meeting invitation from Alice
+Decline tomorrow's 3pm meeting with a note that I have a conflict
+Tentatively accept the project review
+```
+
+### Manage someone else's calendar (work/school accounts only)
+
+If someone has granted you delegate access in Outlook, you can manage their calendar:
+
+```
+Schedule a meeting called "Board Review" on Sarah's calendar for Friday at 10am
+Cancel the 2pm meeting on my manager's calendar
+Accept the invitation on behalf of sarah@company.com
+```
+
+### Book a meeting room (work/school accounts only)
+
+```
+What meeting rooms are available?
+Show me rooms in Building 2
+Book the Boardroom for tomorrow's team meeting at 3pm
+```
+
 ### Slash commands
 
 You can also use these shortcuts:
@@ -199,7 +234,7 @@ Your organisation requires an admin to approve apps that access calendar data. Y
 
 ### Some features don't work with my personal account
 
-Personal Microsoft accounts have limited Graph API support. Checking other people's availability (`/check-availability`, `/find-time`) and viewing other people's calendars are only available with work/school accounts. Your own calendar, creating events, and managing events all work fine.
+Personal Microsoft accounts have limited Graph API support. The following features are only available with work/school accounts: checking availability (`/check-availability`, `/find-time`), viewing other people's calendars, managing someone else's calendar (delegate access), and meeting room discovery. Your own calendar -- including recurring meetings, creating events, and managing events -- all works fine.
 
 ### The login expired
 

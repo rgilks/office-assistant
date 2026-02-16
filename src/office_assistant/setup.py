@@ -105,7 +105,12 @@ def _authenticate() -> None:
     if _is_personal_tenant(tenant_id):
         scopes = ["Calendars.ReadWrite", "User.Read"]
     else:
-        scopes = ["Calendars.ReadWrite", "Calendars.ReadWrite.Shared", "User.Read"]
+        scopes = [
+            "Calendars.ReadWrite",
+            "Calendars.ReadWrite.Shared",
+            "Place.Read.All",
+            "User.Read",
+        ]
 
     app = msal.PublicClientApplication(
         client_id,

@@ -25,6 +25,7 @@ CACHE_FILE = CACHE_DIR / "token_cache.json"
 _ORG_SCOPES = [
     "Calendars.ReadWrite",
     "Calendars.ReadWrite.Shared",
+    "Place.Read.All",
     "User.Read",
 ]
 _PERSONAL_SCOPES = [

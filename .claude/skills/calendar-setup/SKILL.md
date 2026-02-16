@@ -44,7 +44,7 @@ Microsoft account (outlook.com, hotmail.com, live.com)?
 5. Copy the **Application (client) ID** from the overview page
 6. Go to **Authentication** → set **Allow public client flows** to **Yes** → Save
 7. Go to **API permissions** → "Add a permission" → Microsoft Graph → Delegated:
-   - **Work/school**: `Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `User.Read`
+   - **Work/school**: `Calendars.ReadWrite`, `Calendars.ReadWrite.Shared`, `Place.Read.All`, `User.Read`
    - **Personal**: `Calendars.ReadWrite` and `User.Read` only
    - Click "Add permissions"
 
