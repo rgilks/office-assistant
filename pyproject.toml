@@ -19,6 +19,7 @@ dev = [
     "pytest-cov>=6.0",
     "respx>=0.21",
     "ruff>=0.8",
+    "mypy>=1.0",
     "pre-commit>=4.0",
 ]
 
@@ -69,3 +70,11 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["office_assistant"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true

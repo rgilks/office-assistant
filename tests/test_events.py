@@ -753,3 +753,325 @@ class TestCancelEvent:
 
         assert result["errorType"] == "not_found"
         assert result["statusCode"] == 404
+
+
+class TestCreateEventValidation:
+    """Additional validation edge cases for create_event."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_room_email_rejected(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T14:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Europe/London",
+            ctx=mock_ctx,
+            room_emails=["not-valid"],
+        )
+
+        assert "error" in result
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_delegate_email_rejected(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T14:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Europe/London",
+            ctx=mock_ctx,
+            user_email="bad",
+        )
+
+        assert "error" in result
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_end_timezone_rejected(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T14:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Not/AZone",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "IANA timezone" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_end_before_start_rejected(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T16:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Europe/London",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert "must be before" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_with_body(self, mock_ctx, mock_graph):
+        mock_graph.post.return_value = SAMPLE_EVENT
+
+        await create_event(
+            subject="Test",
+            start_datetime="2026-02-17T14:00:00",
+            start_timezone="Europe/London",
+            end_datetime="2026-02-17T15:00:00",
+            end_timezone="Europe/London",
+            ctx=mock_ctx,
+            body="Meeting agenda here",
+        )
+
+        body = mock_graph.post.call_args[1]["json"]
+        assert body["body"]["content"] == "Meeting agenda here"
+
+    @pytest.mark.asyncio
+    async def test_list_events_non_delegate_graph_error(self, mock_ctx, mock_graph):
+        """Non-delegate list_events error (no user_email) uses generic error."""
+        mock_graph.get_all.side_effect = GraphApiError(
+            status_code=500,
+            code="InternalServerError",
+            message="Something broke",
+        )
+
+        result = await list_events(
+            start_datetime="2026-02-16T00:00:00",
+            end_datetime="2026-02-16T23:59:59",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert result["statusCode"] == 500
+
+
+class TestRecurrenceValidation:
+    """Additional recurrence validation edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_recurrence_interval_below_one(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="daily",
+            recurrence_interval=0,
+        )
+
+        assert "error" in result
+        assert "at least 1" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_invalid_days_of_week(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="weekly",
+            recurrence_days_of_week=["funday"],
+        )
+
+        assert "error" in result
+        assert "Invalid days" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_bad_end_date_format(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="daily",
+            recurrence_end_date="Feb 16 2026",
+        )
+
+        assert "error" in result
+        assert "YYYY-MM-DD" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_recurrence_count_below_one(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="daily",
+            recurrence_count=0,
+        )
+
+        assert "error" in result
+        assert "at least 1" in result["error"]
+        mock_graph.post.assert_not_called()
+
+
+class TestUpdateEventValidation:
+    """Additional update_event validation edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_update_invalid_attendees(self, mock_ctx, mock_graph):
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            attendees=["bad-email"],
+        )
+
+        assert "error" in result
+        mock_graph.patch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_invalid_user_email(self, mock_ctx, mock_graph):
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            subject="New title",
+            user_email="bad",
+        )
+
+        assert "error" in result
+        mock_graph.patch.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_invalid_start_timezone(self, mock_ctx, mock_graph):
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            start_timezone="Not/AZone",
+        )
+
+        assert "error" in result
+        assert "IANA timezone" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_update_invalid_end_timezone(self, mock_ctx, mock_graph):
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            end_timezone="Not/AZone",
+        )
+
+        assert "error" in result
+        assert "IANA timezone" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_update_fetch_existing_fails(self, mock_ctx, mock_graph):
+        """When fetching existing event for partial update fails."""
+        mock_graph.get.side_effect = GraphApiError(
+            status_code=404,
+            code="ErrorItemNotFound",
+            message="Not found",
+        )
+
+        result = await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            start_datetime="2026-02-16T09:15:00",
+        )
+
+        assert "error" in result
+        assert result["statusCode"] == 404
+
+    @pytest.mark.asyncio
+    async def test_update_attendees_body_location(self, mock_ctx, mock_graph):
+        """Update attendees, body, and location together."""
+        mock_graph.patch.return_value = SAMPLE_EVENT
+
+        await update_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            attendees=["alice@company.com"],
+            body="New agenda",
+            location="Board Room",
+        )
+
+        body = mock_graph.patch.call_args[1]["json"]
+        assert body["attendees"][0]["emailAddress"]["address"] == "alice@company.com"
+        assert body["body"]["content"] == "New agenda"
+        assert body["location"]["displayName"] == "Board Room"
+
+
+class TestCancelEventValidation:
+    """Additional cancel_event edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_invalid_user_email(self, mock_ctx, mock_graph):
+        result = await cancel_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            user_email="bad",
+        )
+
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_cancel_with_comment_delegate_error(self, mock_ctx, mock_graph):
+        """Cancel via /cancel endpoint fails with delegate 403."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=403,
+            code="ErrorAccessDenied",
+            message="Forbidden",
+        )
+
+        result = await cancel_event(
+            event_id="event-1",
+            ctx=mock_ctx,
+            comment="Cancelled",
+            user_email="boss@company.com",
+        )
+
+        assert "error" in result
+        assert "delegate access" in result["error"]
+
+
+class TestRespondValidation:
+    """Additional respond_to_event edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_respond_invalid_user_email(self, mock_ctx, mock_graph):
+        result = await respond_to_event(
+            event_id="event-1",
+            response="accept",
+            ctx=mock_ctx,
+            user_email="bad",
+        )
+
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_respond_non_delegate_error(self, mock_ctx, mock_graph):
+        """Non-delegate respond error (no user_email) uses generic error."""
+        mock_graph.post.side_effect = GraphApiError(
+            status_code=500,
+            code="InternalServerError",
+            message="Something broke",
+        )
+
+        result = await respond_to_event(
+            event_id="event-1",
+            response="accept",
+            ctx=mock_ctx,
+        )
+
+        assert "error" in result
+        assert result["statusCode"] == 500

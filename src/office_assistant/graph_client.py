@@ -136,7 +136,8 @@ class GraphClient:
 
         # All retries exhausted — return the last response so the caller
         # gets a proper GraphApiError via _ensure_success.
-        assert resp is not None
+        if resp is None:  # pragma: no cover — unreachable when _MAX_RETRIES > 0
+            raise RuntimeError("No response received after retries")
         logger.error(
             "Graph API %s %s failed after %d retries with status %d",
             method,
@@ -150,7 +151,8 @@ class GraphClient:
         logger.debug("GET %s", path)
         resp = await self._request_with_retry("GET", path, params=params)
         self._ensure_success(resp)
-        return resp.json()
+        result: dict[str, Any] = resp.json()
+        return result
 
     async def get_all(
         self,
@@ -194,7 +196,8 @@ class GraphClient:
         # Some endpoints (e.g. /events/{id}/cancel) return 202 with no body.
         if resp.status_code == 202 or not resp.content:
             return {}
-        return resp.json()
+        result: dict[str, Any] = resp.json()
+        return result
 
     async def patch(self, path: str, json: dict[str, Any]) -> dict[str, Any]:
         logger.debug("PATCH %s", path)
@@ -202,7 +205,8 @@ class GraphClient:
         self._ensure_success(resp)
         if not resp.content:
             return {}
-        return resp.json()
+        result: dict[str, Any] = resp.json()
+        return result
 
     async def delete(self, path: str) -> None:
         logger.debug("DELETE %s", path)

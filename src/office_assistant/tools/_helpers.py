@@ -19,7 +19,8 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def get_graph(ctx: Context) -> GraphClient:
     """Extract the ``GraphClient`` from the MCP lifespan context."""
-    return ctx.request_context.lifespan_context.graph
+    client: GraphClient = ctx.request_context.lifespan_context.graph
+    return client
 
 
 def validate_emails(emails: list[str]) -> str | None:

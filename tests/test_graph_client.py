@@ -187,3 +187,50 @@ async def test_get_all_single_page(client):
 
     assert len(result["value"]) == 1
     assert client._http.request.call_count == 1
+
+
+def test_graph_api_error_str_with_code():
+    exc = GraphApiError(status_code=403, message="Forbidden", code="ErrorAccessDenied")
+    assert str(exc) == "Graph API error 403 [ErrorAccessDenied]: Forbidden"
+
+
+def test_graph_api_error_str_without_code():
+    exc = GraphApiError(status_code=500, message="Internal error")
+    assert str(exc) == "Graph API error 500: Internal error"
+
+
+def test_parse_retry_after_non_numeric():
+    """Non-integer Retry-After header returns None."""
+    result = GraphClient._parse_retry_after("Thu, 01 Jan 2026 00:00:00 GMT")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_raise_graph_error_invalid_json(client):
+    """When the response body is not valid JSON, we still get a structured error."""
+    resp = _mock_response(status_code=502)
+    resp.json.side_effect = ValueError("No JSON")
+    client._http.request = AsyncMock(return_value=resp)
+
+    with pytest.raises(GraphApiError) as exc_info:
+        await client.get("/me")
+
+    exc = exc_info.value
+    assert exc.status_code == 502
+    assert "HTTP 502" in exc.message
+
+
+@pytest.mark.asyncio
+async def test_raise_graph_error_top_level_message(client):
+    """When the error payload has a top-level 'message' but no 'error' dict."""
+    resp = _mock_response(
+        status_code=400,
+        json_data={"message": "Bad request parameter"},
+    )
+    client._http.request = AsyncMock(return_value=resp)
+
+    with pytest.raises(GraphApiError) as exc_info:
+        await client.get("/me")
+
+    assert exc_info.value.message == "Bad request parameter"
+    assert exc_info.value.code is None

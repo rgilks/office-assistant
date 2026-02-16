@@ -129,7 +129,7 @@ def get_token() -> str:
         if result and "access_token" in result:
             logger.debug("Token acquired silently for %s", accounts[0].get("username"))
             _save_cache(cache)
-            return result["access_token"]
+            return str(result["access_token"])
 
     # Fall back to device-code flow.
     logger.info("No cached token, starting device-code flow")
@@ -147,7 +147,7 @@ def get_token() -> str:
 
     if "access_token" in result:
         logger.info("Authenticated via device-code flow")
-        return result["access_token"]
+        return str(result["access_token"])
 
     error_desc = result.get("error_description", "Unknown error")
     logger.error("Authentication failed: %s", error_desc)

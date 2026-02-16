@@ -32,7 +32,7 @@ def _load_existing_env() -> tuple[str, str]:
     from dotenv import dotenv_values
 
     config = dotenv_values(path)
-    return config.get("CLIENT_ID", ""), config.get("TENANT_ID", "")
+    return config.get("CLIENT_ID") or "", config.get("TENANT_ID") or ""
 
 
 def _env_is_complete() -> bool:
