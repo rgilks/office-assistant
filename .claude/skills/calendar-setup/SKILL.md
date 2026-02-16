@@ -68,5 +68,5 @@ Then run `uv run python -m office_assistant.setup` and follow the prompts.
 - **"Approval required" / admin consent screen**: The user's organisation
   requires admin approval. They can ask their IT admin to grant consent, or
   use a personal Microsoft account instead.
-- **Want to start fresh?**: Delete `~/.office-assistant/token_cache.json` and
-  run setup again.
+- **Want to start fresh?**: Run `uv run python -m office_assistant.setup` —
+  it will detect the expired token and walk you through signing in again.

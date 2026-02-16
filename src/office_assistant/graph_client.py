@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from office_assistant.auth import get_token
+from office_assistant.auth import clear_cache, get_token
 
 GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 
@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 _MAX_RETRIES = 3
 _RETRY_STATUS_CODES = {429, 503, 504}
 _BASE_BACKOFF_SECONDS = 1.0
+
+# 401 means the token is invalid/expired — clear the cache and get a fresh one.
+_AUTH_FAILURE_STATUS = 401
 
 
 @dataclass(slots=True)
@@ -106,12 +109,23 @@ class GraphClient:
         path: str,
         **kwargs: Any,
     ) -> httpx.Response:
-        """Execute an HTTP request with retry on transient failures."""
+        """Execute an HTTP request with retry on transient failures.
+
+        Also handles 401 (Unauthorized) by clearing the token cache and
+        re-authenticating once before giving up.
+        """
         headers = await self._auth_headers()
         resp: httpx.Response | None = None
 
         for attempt in range(_MAX_RETRIES):
             resp = await self._http.request(method, path, headers=headers, **kwargs)
+
+            # Token expired/revoked — clear cache and get a fresh token once.
+            if resp.status_code == _AUTH_FAILURE_STATUS and attempt == 0:
+                logger.warning("Got 401, clearing token cache and re-authenticating")
+                clear_cache()
+                headers = await self._auth_headers()
+                continue
 
             if resp.status_code not in _RETRY_STATUS_CODES:
                 return resp

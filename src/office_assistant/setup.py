@@ -128,6 +128,9 @@ def _authenticate() -> None:
             print()
             print(f"Already authenticated (token cached at {CACHE_FILE}).")
             return
+        # Token expired — clear old cache and re-authenticate.
+        print()
+        print("Your sign-in has expired. Let's get you signed in again.")
 
     # Start device code flow.
     flow = app.initiate_device_flow(scopes=scopes)

@@ -121,31 +121,37 @@ If you're using a personal Microsoft account (@outlook.com, @hotmail.com), most 
 
 ## Getting started
 
-Setting up takes about 10 minutes. You'll install the software, register an app in the Azure portal, and sign in. If any of this feels unfamiliar, your IT department can help -- especially with the Azure registration step.
+Setting up takes about 10 minutes. There are three parts: install the software, register an app with Microsoft, and sign in. If any of this feels unfamiliar, your IT department can help -- especially with the Azure registration part.
 
 ### What you'll need
 
 - **A computer** running Windows, macOS, or Linux
 - **A Microsoft account** -- either a work/school account (Office 365) or a personal account (@outlook.com, @hotmail.com)
-- **Claude Code** -- [installation guide](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
+- **Claude Code** -- install it first by following the [Claude Code installation guide](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
 
 You do **not** need to install Python or any other programming tools -- the setup script handles everything automatically.
 
-### Step 1: Install the assistant
+### Step 1: Download and install
 
-Open a terminal and run these three commands:
+Open a terminal and run these three commands, one at a time. Copy each line, paste it into the terminal, and press **Enter**:
 
-```bash
+```
 git clone https://github.com/rgilks/office-assistant.git
+```
+```
 cd office-assistant
+```
+```
 ./setup.sh
 ```
+
+The first command downloads the assistant. The second opens the folder. The third installs everything it needs to run.
 
 <details>
 <summary><strong>How do I open a terminal?</strong></summary>
 
-- **Windows**: Press the Windows key, type **Terminal** or **PowerShell**, and open it. If you have WSL (Windows Subsystem for Linux) installed, open it by typing **wsl** in the Start menu. If you're not sure whether you have WSL, ask your IT department -- they can install it for you in a few minutes.
 - **Mac**: Press **Cmd + Space**, type **Terminal**, and press Enter.
+- **Windows**: Press the Windows key, type **wsl**, and open it. If WSL isn't installed, see the Windows section below.
 - **Linux**: Press **Ctrl + Alt + T** or look for Terminal in your applications menu.
 
 </details>
@@ -153,37 +159,48 @@ cd office-assistant
 <details>
 <summary><strong>"git" is not recognised / command not found</strong></summary>
 
-Git doesn't come pre-installed on most computers. Here's how to get it:
+Git is a tool used to download the assistant. It doesn't come pre-installed on most computers, but it's quick to add:
 
-- **Windows (WSL)**: In your WSL terminal, run `sudo apt install git`
-- **Mac**: Type `git` in the terminal -- macOS will offer to install the developer tools for you. Click **Install** and wait for it to finish.
-- **Windows (without WSL)**: Download and install from [git-scm.com](https://git-scm.com/download/win), then restart your terminal.
+- **Mac**: Type `git` in the terminal and press Enter -- macOS will offer to install it for you. Click **Install** and wait for it to finish.
+- **Windows (WSL)**: In your WSL terminal, type `sudo apt install git` and press Enter.
+- **Windows (without WSL)**: Download the installer from [git-scm.com](https://git-scm.com/download/win), run it, then restart your terminal.
 
-If you're not comfortable with this step, ask your IT department -- it takes less than a minute.
+If you're not comfortable with this, ask your IT department -- it takes less than a minute.
 
 </details>
 
 <details>
 <summary><strong>Windows users: about WSL</strong></summary>
 
-Office Assistant runs inside WSL (Windows Subsystem for Linux), which gives you a Linux environment on your Windows PC. Most modern Windows work computers already have this installed. To check, open PowerShell and type `wsl --status`. If it's not installed, your IT department can set it up by running `wsl --install` in an administrator PowerShell -- it takes about 5 minutes and requires one restart.
+Office Assistant runs inside WSL (Windows Subsystem for Linux), which gives you a Linux environment on your Windows PC. Most modern Windows work computers already have this installed.
 
-Once WSL is set up, open it from the Start menu and run the install commands above inside the WSL terminal.
+**To check:** open PowerShell (press the Windows key, type **PowerShell**) and type `wsl --status`.
+
+**If it's not installed:** ask your IT department to run `wsl --install` in an administrator PowerShell -- it takes about 5 minutes and one restart.
+
+Once WSL is set up, open it from the Start menu (type **wsl**) and run the install commands above inside the WSL terminal.
 
 </details>
 
-The setup script will automatically install all the software dependencies and walk you through the sign-in process. If you see any errors, jump to [Troubleshooting](#troubleshooting) below.
+<details>
+<summary><strong>"./setup.sh: Permission denied"</strong></summary>
+
+Type `bash setup.sh` instead and press Enter. This does the same thing.
+
+</details>
+
+The setup script will install all the software dependencies and then walk you through signing in. If you see any errors, jump to [Troubleshooting](#troubleshooting) below.
 
 ### Step 2: Register an app in Azure
 
-This step tells Microsoft that the Office Assistant is allowed to access calendars on your behalf. You only need to do this once. If your organisation restricts Azure access, ask your IT department to do this step for you.
+This step tells Microsoft that the Office Assistant is allowed to access your calendar. You only need to do this once. If your organisation restricts Azure access, ask your IT department to do this step for you -- they'll know what to do.
 
 1. Go to **[portal.azure.com](https://portal.azure.com)** in your web browser
 2. Sign in with your **Microsoft account** (work, school, or personal)
 3. In the search bar at the top, type **App registrations** and click the result
 4. Click the **+ New registration** button
 5. Fill in the form:
-   - **Name**: `Office Assistant`
+   - **Name**: `Office Assistant` (or anything you like -- this is just a label)
    - **Supported account types**: choose based on your account:
      - **Work/school account**: "Accounts in this organizational directory only"
      - **Personal account** (@outlook.com, @hotmail.com): "Personal Microsoft accounts only"
@@ -192,7 +209,7 @@ This step tells Microsoft that the Office Assistant is allowed to access calenda
 
 You'll now see an overview page for your new app:
 
-7. Copy the **Application (client) ID** -- it looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`. You'll need this in the next step.
+7. Copy the **Application (client) ID** -- it's the long code that looks like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`. Save it somewhere -- you'll need it in a moment.
 
 Now configure two more settings:
 
@@ -207,34 +224,42 @@ Now configure two more settings:
    - Click **Delegated permissions**
    - Search for and tick these permissions:
      - `Calendars.ReadWrite`
-     - `Calendars.ReadWrite.Shared` (work/school accounts only -- skip for personal accounts)
-     - `Place.Read.All` (work/school accounts only -- enables meeting room discovery)
+     - `Calendars.ReadWrite.Shared` (work/school accounts only -- skip this for personal accounts)
+     - `Place.Read.All` (work/school accounts only -- skip this for personal accounts)
      - `User.Read`
    - Click **Add permissions**
 
 ### Step 3: Sign in
 
-If the setup script from Step 1 didn't already walk you through this, run the sign-in command:
+If the setup script from Step 1 already walked you through signing in, you're done! Otherwise, go back to your terminal and run:
 
-```bash
+```
 cd office-assistant
 uv run python -m office_assistant.setup
 ```
 
 It will ask you for:
-- Your **Application (client) ID** (from step 7 above)
+- Your **Application (client) ID** (the code you copied in step 7 above)
 - Whether you're using a **work/school** or **personal** account
 
-Then it will show a sign-in message like:
+Then it will show a message like:
 
 > To sign in, use a web browser to open https://microsoft.com/devicelogin and enter the code **ABCD1234**
 
 1. Open that link in your browser
-2. Enter the code shown
+2. Enter the code shown in the terminal
 3. Sign in with your Microsoft account
-4. Approve the permissions when asked
+4. Click **Accept** when asked to approve the permissions
 
-That's it! Your login is saved for about 90 days, so you won't need to do this again for a while. When it expires, just use any calendar command and it will prompt you to sign in again.
+That's it! Your sign-in is saved for about 90 days. When it expires, just use any calendar command and the assistant will automatically prompt you to sign in again -- you'll see the same link and code as before.
+
+---
+
+## Using the assistant
+
+Once set up, open Claude Code in the `office-assistant` folder and start chatting. You don't need to remember any special commands -- just describe what you need in plain English.
+
+If the assistant ever has trouble connecting, type `/calendar-setup` and it will help you fix it.
 
 ---
 
@@ -242,19 +267,24 @@ That's it! Your login is saved for about 90 days, so you won't need to do this a
 
 ### "CLIENT_ID and TENANT_ID must be set"
 
-The configuration file is missing or incomplete. Run `uv run python -m office_assistant.setup` to set it up interactively.
+The assistant hasn't been set up yet, or the setup didn't finish. Go back to your terminal and run:
+
+```
+cd office-assistant
+uv run python -m office_assistant.setup
+```
 
 ### "Could not start device-code flow"
 
-Your Azure app may not have public client flows enabled. Go back to Azure Portal > App registrations > your app > Authentication, and make sure "Allow public client flows" is set to **Yes**.
+Your Azure app may not have the right setting enabled. Go back to the Azure Portal, find your app under **App registrations**, click **Authentication**, and make sure **Allow public client flows** is set to **Yes**. Don't forget to click **Save**.
 
 ### "You don't have permission to view this person's calendar"
 
-The other person hasn't shared their calendar with you. Ask them to share it: in Outlook, they go to **Calendar** > right-click their calendar > **Sharing and Permissions** > add your email address.
+The other person hasn't shared their calendar with you. Ask them to share it: in Outlook, they go to **Calendar**, right-click their calendar, choose **Sharing and Permissions**, and add your email address.
 
 ### "ErrorAccessDenied" on any calendar operation
 
-The Azure app is missing the required permissions. Go to Azure Portal > App registrations > your app > API permissions and check that the right permissions are listed (see Step 2 above).
+The Azure app is missing some permissions. Go back to Step 2 above and check that all the required permissions are listed under **API permissions**.
 
 ### "Approval required" or admin consent screen
 
@@ -265,7 +295,7 @@ Your organisation requires an admin to approve apps that access calendar data. Y
 
 ### The login expired
 
-Just use any calendar command and it will automatically refresh. If the refresh token has also expired (after ~90 days), you'll be prompted to sign in again with the device code flow.
+Just use any calendar command -- the assistant will automatically detect the expired sign-in and prompt you to sign in again. You'll see a link and a code, same as the first time.
 
 ### Something else isn't working
 
