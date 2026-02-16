@@ -82,7 +82,7 @@ class TestLoadEnv:
         env_file.write_text("")
         with (
             patch.dict("os.environ", {"DOTENV_PATH": str(env_file)}),
-            pytest.raises(RuntimeError, match="CLIENT_ID and TENANT_ID"),
+            pytest.raises(RuntimeError, match="Microsoft account isn't configured"),
         ):
             _load_env()
 

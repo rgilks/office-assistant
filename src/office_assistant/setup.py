@@ -48,20 +48,23 @@ def _create_env_file() -> None:
 
     print()
     if existing_client_id or existing_tenant_id:
-        print("Your .env file is incomplete. Let's fill in the missing values.")
+        print("Your credentials file is incomplete. Let's fill in the missing values.")
     else:
-        print("No .env file found. Let's set one up now.")
-    print()
-    print("You'll need an Azure App Registration first.")
-    print("See /calendar-setup in Claude Code for step-by-step instructions,")
-    print("or visit: https://portal.azure.com → App registrations")
+        print("Let's connect your Microsoft account.")
+        print()
+        print("You'll need an Application (client) ID from an Azure App Registration.")
+        print("If you haven't created one yet, see the README or type /calendar-setup")
+        print("in Claude Code for step-by-step instructions.")
     print()
 
     client_id = existing_client_id
     if not client_id:
-        client_id = input("Paste your Application (client) ID: ").strip()
+        print("You can find this in the Azure Portal under App registrations")
+        print("> your app > Overview.")
+        print()
+        client_id = input("Application (client) ID: ").strip()
         if not client_id:
-            print("Error: CLIENT_ID is required.", file=sys.stderr)
+            print("Error: A client ID is required to continue.", file=sys.stderr)
             sys.exit(1)
 
     tenant_id = existing_tenant_id
@@ -99,29 +102,29 @@ def _authenticate() -> None:
     try:
         get_token()
         print()
-        print(f"Already authenticated (token cached at {CACHE_FILE}).")
+        print("Already signed in.")
     except AuthenticationRequired as auth_req:
         print()
-        print("Your sign-in has expired." if CACHE_FILE.exists() else "")
+        if CACHE_FILE.exists():
+            print("Your sign-in has expired. Let's reconnect.")
+        print()
         print(auth_req.message)
         print()
-        print("Waiting for you to sign in...")
+        print("Waiting for you to complete sign-in in your browser...")
         complete_device_flow(auth_req.flow)
         print()
-        print("Authenticated successfully!")
-        print(f"Token cached at {CACHE_FILE}")
+        print("Signed in successfully!")
 
 
 def main() -> None:
-    print("=== Office Assistant Setup ===")
-
     if not _env_is_complete():
         _create_env_file()
 
     _authenticate()
 
     print()
-    print("You're all set! Use /calendar in Claude Code to get started.")
+    print("You're all set! Start a new Claude Code conversation and type")
+    print("/calendar to manage your calendar.")
 
 
 if __name__ == "__main__":

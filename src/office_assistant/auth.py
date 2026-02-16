@@ -91,7 +91,8 @@ def _load_env() -> tuple[str, str]:
 
     if not client_id or not tenant_id:
         raise RuntimeError(
-            "CLIENT_ID and TENANT_ID must be set in your .env file. Run /calendar-setup for help."
+            "Your Microsoft account isn't configured yet. Run ./setup.sh from the "
+            "office-assistant folder to set it up, or type /calendar-setup for help."
         )
     return client_id, tenant_id
 
@@ -163,7 +164,11 @@ def get_token() -> str:
     if "user_code" not in flow:
         error_desc = flow.get("error_description", "Unknown error")
         logger.error("Device-code flow failed: %s", error_desc)
-        raise RuntimeError(f"Could not start device-code flow: {error_desc}")
+        raise RuntimeError(
+            f"Could not start the sign-in process: {error_desc}. Check that "
+            "'Allow public client flows' is set to Yes in your Azure app "
+            "registration (Authentication settings)."
+        )
 
     # When running as an MCP server, we can't block waiting for the user
     # to sign in — stdout is the MCP transport so they'd never see the

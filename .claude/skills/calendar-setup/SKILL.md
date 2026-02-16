@@ -16,6 +16,26 @@ in your tool list. Do **NOT** use Bash, Python scripts, or subprocess calls to
 invoke tools. All tool names below use their short form (e.g. `get_my_profile`);
 the actual callable tool is always `mcp__office-assistant__<short_name>`.
 
+## If MCP tools are not available
+
+If calling any `mcp__office-assistant__*` tool returns a "No such tool" or
+"tool not available" error, the MCP server is not registered with Claude Code.
+
+Tell the user:
+
+> The calendar assistant isn't connected yet. To set it up, run this command
+> in your terminal:
+>
+>     cd <project directory> && ./setup.sh
+>
+> This will install dependencies, register the assistant with Claude Code,
+> and walk you through connecting your Microsoft account. Once it's done,
+> **start a new conversation** and try again.
+
+Replace `<project directory>` with the actual working directory of this project.
+Do NOT attempt to call MCP tools again or use Bash workarounds — the server
+must be registered first, which requires restarting the conversation.
+
 ## Check current state
 
 First, try calling `get_my_profile`. If it succeeds, authentication is already

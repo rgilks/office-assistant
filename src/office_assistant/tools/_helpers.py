@@ -131,7 +131,9 @@ def graph_error_response(
     if exc.status_code == 401 or code in {"invalidauthenticationtoken", "unauthorized"}:
         error_type = "auth_error"
         message = (
-            fallback_message or "Authentication failed. Run /calendar-setup to sign in again."
+            fallback_message
+            or "Your sign-in has expired or is invalid. Type /calendar-setup to reconnect "
+            "your Microsoft account."
         )
     elif exc.status_code == 403 or code in {"erroraccessdenied", "accessdenied"}:
         error_type = "permission_denied"
@@ -141,7 +143,7 @@ def graph_error_response(
         message = fallback_message or "The requested resource was not found."
     elif exc.status_code == 429:
         error_type = "throttled"
-        message = fallback_message or "Microsoft Graph is rate-limiting requests. Please retry."
+        message = fallback_message or "Too many requests — please wait a moment and try again."
     elif exc.status_code == 400 or code.startswith("errorinvalid"):
         error_type = "validation_error"
         message = fallback_message or exc.message

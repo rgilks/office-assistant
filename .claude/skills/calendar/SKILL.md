@@ -22,6 +22,24 @@ To list events call `mcp__office-assistant__list_events` with the required
 parameters. All tool names below use their short form (e.g. `get_my_profile`);
 the actual callable tool is always `mcp__office-assistant__<short_name>`.
 
+## If MCP tools are not available
+
+If calling any `mcp__office-assistant__*` tool returns a "No such tool" or
+"tool not available" error, the MCP server is not registered with Claude Code.
+
+Tell the user:
+
+> The calendar assistant isn't connected yet. To set it up, run this command
+> in your terminal:
+>
+>     cd <project directory> && ./setup.sh
+>
+> Then **start a new conversation** and try again.
+
+Replace `<project directory>` with the actual working directory of this project.
+Do NOT attempt to call MCP tools again or use Bash workarounds — the server
+must be registered first, which requires restarting the conversation.
+
 ## Getting started
 
 Before doing anything else, call `get_my_profile` to learn the user's name,
