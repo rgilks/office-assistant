@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -72,9 +74,19 @@ class GraphClient:
         if value is None:
             return None
         try:
-            return int(value)
+            # RFC 9110: delay-seconds is a non-negative decimal integer.
+            return max(int(value), 0)
         except ValueError:
+            pass
+        # RFC 9110 also allows an HTTP-date Retry-After value.
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
             return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=UTC)
+        now = datetime.now(UTC)
+        return max(int((retry_at - now).total_seconds()), 0)
 
     def _raise_graph_error(self, resp: httpx.Response) -> None:
         code: str | None = None
@@ -231,10 +243,9 @@ class GraphClient:
         pages = 1
         next_link = data.get("@odata.nextLink")
         while next_link and pages < max_pages:
-            # nextLink is an absolute URL; strip the base so _request_with_retry works.
-            relative = next_link.replace(GRAPH_BASE_URL, "")
-            logger.debug("Following nextLink (page %d): %s", pages + 1, relative)
-            page_data = await self.get(relative)
+            logger.debug("Following nextLink (page %d): %s", pages + 1, next_link)
+            # Graph returns an opaque URL. Request it as-is per Graph docs.
+            page_data = await self.get(next_link)
             all_items.extend(page_data.get("value", []))
             next_link = page_data.get("@odata.nextLink")
             pages += 1

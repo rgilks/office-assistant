@@ -32,6 +32,11 @@ class TestValidateDatetime:
     def test_valid_datetime(self):
         assert validate_datetime("2026-02-16T09:00:00", "start") is None
 
+    def test_date_only_datetime_rejected(self):
+        err = validate_datetime("2026-02-16", "start")
+        assert err is not None
+        assert "include both date and time" in err
+
     def test_invalid_datetime(self):
         err = validate_datetime("not-a-date", "start")
         assert err is not None
@@ -64,12 +69,12 @@ class TestValidateDatetimeOrder:
     def test_invalid_start_datetime(self):
         err = validate_datetime_order("bad", "2026-02-16T09:00:00")
         assert err is not None
-        assert "ISO 8601" in err
+        assert "include both date and time" in err
 
     def test_invalid_end_datetime(self):
         err = validate_datetime_order("2026-02-16T09:00:00", "bad")
         assert err is not None
-        assert "ISO 8601" in err
+        assert "include both date and time" in err
 
     def test_invalid_start_timezone(self):
         err = validate_datetime_order(

@@ -94,6 +94,35 @@ class TestLoadEnv:
             assert client_id == "abc"
             assert tenant_id == "xyz"
 
+    def test_prefers_process_env_over_dotenv(self, tmp_path):
+        env_file = tmp_path / ".env"
+        env_file.write_text("CLIENT_ID=file-client\nTENANT_ID=file-tenant\n")
+        with patch.dict(
+            "os.environ",
+            {
+                "DOTENV_PATH": str(env_file),
+                "CLIENT_ID": "env-client",
+                "TENANT_ID": "env-tenant",
+            },
+            clear=True,
+        ):
+            client_id, tenant_id = _load_env()
+            assert client_id == "env-client"
+            assert tenant_id == "env-tenant"
+
+    def test_loads_from_process_env_without_dotenv(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "CLIENT_ID": "env-client",
+                "TENANT_ID": "env-tenant",
+            },
+            clear=True,
+        ):
+            client_id, tenant_id = _load_env()
+            assert client_id == "env-client"
+            assert tenant_id == "env-tenant"
+
 
 class TestGetToken:
     def test_silent_token_acquisition(self, patch_auth):

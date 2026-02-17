@@ -50,8 +50,13 @@ def _parse_iso_datetime(value: str) -> datetime:
 
 def validate_datetime(value: str, field_name: str) -> str | None:
     """Validate an ISO 8601 datetime string."""
+    normalized = value.strip()
+    if "T" not in normalized and "t" not in normalized:
+        return (
+            f"{field_name} must include both date and time " "(for example, 2026-02-16T09:00:00)."
+        )
     try:
-        _parse_iso_datetime(value)
+        _parse_iso_datetime(normalized)
     except ValueError:
         return f"{field_name} must be a valid ISO 8601 datetime."
     return None

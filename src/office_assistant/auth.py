@@ -74,10 +74,11 @@ def _is_personal_tenant(tenant_id: str) -> bool:
 
 
 def _load_env() -> tuple[str, str]:
-    """Load CLIENT_ID and TENANT_ID from the .env file.
+    """Load CLIENT_ID and TENANT_ID from environment or the .env file.
 
-    Checks the DOTENV_PATH environment variable first (set by setup.sh
-    via the MCP ``-e`` flag), then falls back to ``.env`` in the current
+    Checks process environment variables first. If missing there, loads
+    values from the .env file path from DOTENV_PATH (set by setup.sh
+    via the MCP ``-e`` flag), falling back to ``.env`` in the current
     working directory.
 
     For personal Microsoft accounts set ``TENANT_ID=consumers``.
@@ -86,8 +87,8 @@ def _load_env() -> tuple[str, str]:
     dotenv_path = os.environ.get("DOTENV_PATH", ".env")
     config = dotenv_values(dotenv_path)
 
-    client_id = config.get("CLIENT_ID", "")
-    tenant_id = config.get("TENANT_ID", "")
+    client_id = (os.environ.get("CLIENT_ID") or config.get("CLIENT_ID") or "").strip()
+    tenant_id = (os.environ.get("TENANT_ID") or config.get("TENANT_ID") or "").strip()
 
     if not client_id or not tenant_id:
         raise RuntimeError(

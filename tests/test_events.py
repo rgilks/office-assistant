@@ -334,6 +334,22 @@ class TestRecurrence:
         mock_graph.post.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_unsupported_monthly_pattern_rejected(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="absoluteMonthly",
+        )
+
+        assert "error" in result
+        assert "recurrence_pattern must be one of" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_recurrence_shown_in_list_events(self, mock_ctx, mock_graph):
         recurring_event = {
             **SAMPLE_EVENT,
@@ -549,6 +565,19 @@ class TestRespondToEvent:
         assert "/users/boss%40company.com/events/event-1/accept" in call_args[0][0]
 
     @pytest.mark.asyncio
+    async def test_respond_encodes_event_id(self, mock_ctx, mock_graph):
+        mock_graph.post.return_value = {}
+
+        await respond_to_event(
+            event_id="event/with/slash",
+            response="accept",
+            ctx=mock_ctx,
+        )
+
+        call_args = mock_graph.post.call_args
+        assert "/me/events/event%2Fwith%2Fslash/accept" in call_args[0][0]
+
+    @pytest.mark.asyncio
     async def test_invalid_response_rejected(self, mock_ctx, mock_graph):
         result = await respond_to_event(
             event_id="event-1",
@@ -631,6 +660,19 @@ class TestUpdateEvent:
         body = mock_graph.patch.call_args[1]["json"]
         assert body["start"]["dateTime"] == "2026-02-16T10:00:00"
         assert body["end"]["dateTime"] == "2026-02-16T10:30:00"
+
+    @pytest.mark.asyncio
+    async def test_update_encodes_event_id(self, mock_ctx, mock_graph):
+        mock_graph.patch.return_value = SAMPLE_EVENT
+
+        await update_event(
+            event_id="event/with/slash",
+            ctx=mock_ctx,
+            subject="Updated Standup",
+        )
+
+        call_args = mock_graph.patch.call_args
+        assert "/me/events/event%2Fwith%2Fslash" in call_args[0][0]
 
     @pytest.mark.asyncio
     async def test_create_rejects_invalid_email(self, mock_ctx, mock_graph):
@@ -742,6 +784,19 @@ class TestCancelEvent:
         call_args = mock_graph.post.call_args
         assert "/cancel" in call_args[0][0]
         assert call_args[1]["json"]["comment"] == "Meeting postponed"
+
+    @pytest.mark.asyncio
+    async def test_cancel_encodes_event_id(self, mock_ctx, mock_graph):
+        mock_graph.post.return_value = {}
+
+        await cancel_event(
+            event_id="event/with/slash",
+            ctx=mock_ctx,
+            comment="Meeting postponed",
+        )
+
+        call_args = mock_graph.post.call_args
+        assert "/me/events/event%2Fwith%2Fslash/cancel" in call_args[0][0]
 
     @pytest.mark.asyncio
     async def test_cancel_graph_error_normalized(self, mock_ctx, mock_graph):
@@ -925,6 +980,24 @@ class TestRecurrenceValidation:
 
         assert "error" in result
         assert "at least 1" in result["error"]
+        mock_graph.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_recurrence_end_date_and_count_conflict(self, mock_ctx, mock_graph):
+        result = await create_event(
+            subject="Test",
+            start_datetime="2026-02-16T09:00:00",
+            start_timezone="UTC",
+            end_datetime="2026-02-16T09:30:00",
+            end_timezone="UTC",
+            ctx=mock_ctx,
+            recurrence_pattern="daily",
+            recurrence_end_date="2026-03-01",
+            recurrence_count=5,
+        )
+
+        assert "error" in result
+        assert "either recurrence_end_date or recurrence_count" in result["error"]
         mock_graph.post.assert_not_called()
 
 

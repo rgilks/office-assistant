@@ -58,7 +58,7 @@ Cancel the 3pm meeting and let everyone know it's been postponed
 ```
 Set up a daily standup at 9am starting Monday
 Schedule a weekly team sync every Tuesday and Thursday at 2pm for the next 3 months
-Create a monthly budget review on the first Monday of each month
+Create a weekly budget review every Monday at 10am
 ```
 
 ### Accept or decline meetings

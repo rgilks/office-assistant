@@ -39,10 +39,6 @@ _VALID_DAYS = {
 _VALID_PATTERN_TYPES = {
     "daily",
     "weekly",
-    "absoluteMonthly",
-    "relativeMonthly",
-    "absoluteYearly",
-    "relativeYearly",
 }
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -119,6 +115,11 @@ def _delegate_error(exc: GraphApiError, user_email: str | None) -> dict[str, Any
     return graph_error_response(exc)
 
 
+def _event_path(base: str, event_id: str, suffix: str = "") -> str:
+    """Build a Graph API path for an event ID safely as a URL segment."""
+    return f"{base}/events/{quote(event_id, safe='')}{suffix}"
+
+
 def _build_recurrence(
     pattern: str,
     interval: int | None,
@@ -133,6 +134,8 @@ def _build_recurrence(
     """
     if pattern not in _VALID_PATTERN_TYPES:
         return f"recurrence_pattern must be one of: {', '.join(sorted(_VALID_PATTERN_TYPES))}."
+    if end_date and count is not None:
+        return "Provide either recurrence_end_date or recurrence_count, not both."
 
     effective_interval = interval if interval is not None else 1
     if effective_interval < 1:
@@ -274,8 +277,7 @@ async def create_event(
         user_email: Create the event on another user's calendar
             (requires delegate access, work/school accounts only).
         recurrence_pattern: Recurrence type: "daily", "weekly",
-            "absoluteMonthly", "relativeMonthly", "absoluteYearly",
-            or "relativeYearly". Omit for a one-off event.
+            Omit for a one-off event.
         recurrence_interval: How often the pattern repeats (e.g. 1 = every
             week, 2 = every other week). Defaults to 1.
         recurrence_days_of_week: Days for weekly patterns, e.g.
@@ -433,7 +435,7 @@ async def update_event(
     if need_existing:
         try:
             existing = await graph.get(
-                f"{base}/events/{event_id}", params={"$select": "start,end"}
+                _event_path(base, event_id), params={"$select": "start,end"}
             )
         except AuthenticationRequired as exc:
             return auth_required_response(exc)
@@ -484,7 +486,7 @@ async def update_event(
         return {"error": err}
 
     try:
-        data = await graph.patch(f"{base}/events/{event_id}", json=updates)
+        data = await graph.patch(_event_path(base, event_id), json=updates)
     except AuthenticationRequired as exc:
         return auth_required_response(exc)
     except GraphApiError as exc:
@@ -520,14 +522,14 @@ async def cancel_event(
     if comment:
         # The /cancel endpoint sends a cancellation message to attendees.
         try:
-            await graph.post(f"{base}/events/{event_id}/cancel", json={"comment": comment})
+            await graph.post(_event_path(base, event_id, "/cancel"), json={"comment": comment})
         except AuthenticationRequired as exc:
             return auth_required_response(exc)
         except GraphApiError as exc:
             return _delegate_error(exc, user_email)
     else:
         try:
-            await graph.delete(f"{base}/events/{event_id}")
+            await graph.delete(_event_path(base, event_id))
         except AuthenticationRequired as exc:
             return auth_required_response(exc)
         except GraphApiError as exc:
@@ -573,7 +575,7 @@ async def respond_to_event(
     }
 
     try:
-        await graph.post(f"{base}/events/{event_id}/{endpoint}", json=body)
+        await graph.post(_event_path(base, event_id, f"/{endpoint}"), json=body)
     except AuthenticationRequired as exc:
         return auth_required_response(exc)
     except GraphApiError as exc:

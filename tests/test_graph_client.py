@@ -182,6 +182,24 @@ async def test_get_all_respects_max_pages(client):
 
 
 @pytest.mark.asyncio
+async def test_get_all_uses_full_next_link_url(client):
+    next_link = "https://graph.microsoft.com/v1.0/me/events?$skiptoken=abc123"
+    page1 = _mock_response(
+        json_data={
+            "value": [{"id": "1"}],
+            "@odata.nextLink": next_link,
+        }
+    )
+    page2 = _mock_response(json_data={"value": [{"id": "2"}]})
+    client._http.request = AsyncMock(side_effect=[page1, page2])
+
+    await client.get_all("/me/events")
+
+    second_call = client._http.request.call_args_list[1]
+    assert second_call.args[1] == next_link
+
+
+@pytest.mark.asyncio
 async def test_get_all_single_page(client):
     page = _mock_response(json_data={"value": [{"id": "1"}]})
     client._http.request = AsyncMock(return_value=page)
@@ -203,9 +221,22 @@ def test_graph_api_error_str_without_code():
 
 
 def test_parse_retry_after_non_numeric():
-    """Non-integer Retry-After header returns None."""
-    result = GraphClient._parse_retry_after("Thu, 01 Jan 2026 00:00:00 GMT")
+    """Invalid Retry-After header returns None."""
+    result = GraphClient._parse_retry_after("not-a-retry-after")
     assert result is None
+
+
+def test_parse_retry_after_http_date():
+    """HTTP-date Retry-After values are supported."""
+    result = GraphClient._parse_retry_after("Thu, 01 Jan 2099 00:00:00 GMT")
+    assert result is not None
+    assert result > 0
+
+
+def test_parse_retry_after_negative_seconds_clamped():
+    """Negative numeric Retry-After values are treated as 0 seconds."""
+    result = GraphClient._parse_retry_after("-5")
+    assert result == 0
 
 
 @pytest.mark.asyncio
